@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vector Whiteboard</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        .whiteboard-container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+            overflow: auto;
+        }
+        .svg-container {
+            border: 1px solid #ccc;
+            background-color: white;
+            cursor: crosshair;
+            touch-action: none;
+        }
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .color-picker {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .stroke-width {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .path {
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        .word-group {
+            cursor: move;
+        }
+        .selected {
+            stroke: blue !important;
+            stroke-dasharray: 5,5;
+        }
+        .mode-group {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+        .tool-label {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Vector Whiteboard</h1>
+        <div class="whiteboard-container">
+            <div class="controls">
+                <div class="mode-group">
+                    <span class="tool-label">Mode:</span>
+                    <button onclick="setMode('draw')" id="drawMode">Draw</button>
+                    <button onclick="setMode('select')" id="selectMode">Select</button>
+                    <button onclick="finishWord()" id="finishWord">Finish Word</button>
+                </div>
+                <button onclick="clearDrawing()">Clear All</button>
+                <button onclick="deletePath()">Delete Selected</button>
+                <div class="color-picker">
+                    <label for="strokeColor">Color:</label>
+                    <input type="color" id="strokeColor" value="#000000" onchange="updateStrokeColor(this.value)">
+                </div>
+                <div class="stroke-width">
+                    <label for="strokeWidth">Width:</label>
+                    <input type="range" id="strokeWidth" min="1" max="10" value="1" onchange="updateStrokeWidth(this.value)">
+                    <span id="strokeWidthValue">1</span>
+                </div>
+            </div>
+            <svg id="drawingBoard" class="svg-container" width="1500" height="900" xmlns="http://www.w3.org/2000/svg">
+                <g id="pathGroup"></g>
+            </svg>
+        </div>
+    </div>
+
+    <script>
+        const svg = document.getElementById('drawingBoard');
+        const pathGroup = document.getElementById('pathGroup');
+        let currentPath = null;
+        let currentWordGroup = null;
+        let isDrawing = false;
+        let isDragging = false;
+        let pathData = [];
+        let currentStrokeColor = '#000000';
+        let currentStrokeWidth = 3;
+        let currentMode = 'draw';
+        let selectedElement = null;
+        let offset = { x: 0, y: 0 };
+        let lastDrawingTime = 0;
+        const WORD_TIMEOUT = 1000; // 1 second timeout for word grouping
+
+        // Drawing event listeners
+        svg.addEventListener('mousedown', handleMouseDown);
+        svg.addEventListener('mousemove', handleMouseMove);
+        svg.addEventListener('mouseup', handleMouseUp);
+        svg.addEventListener('mouseleave', handleMouseUp);
+
+        // Touch support
+        svg.addEventListener('touchstart', handleTouch);
+        svg.addEventListener('touchmove', handleTouch);
+        svg.addEventListener('touchend', handleMouseUp);
+
+        function createWordGroup() {
+            const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            group.setAttribute("class", "word-group");
+            return group;
+        }
+
+        function finishWord() {
+            if (currentWordGroup) {
+                currentWordGroup = null;
+            }
+            lastDrawingTime = 0;
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('drawMode').style.backgroundColor = mode === 'draw' ? '#0056b3' : '#007bff';
+            document.getElementById('selectMode').style.backgroundColor = mode === 'select' ? '#0056b3' : '#007bff';
+            if (selectedElement) {
+                selectedElement.classList.remove('selected');
+                selectedElement = null;
+            }
+        }
+
+        function handleMouseDown(evt) {
+            if (currentMode === 'draw') {
+                const now = Date.now();
+                if (now - lastDrawingTime > WORD_TIMEOUT) {
+                    currentWordGroup = createWordGroup();
+                    pathGroup.appendChild(currentWordGroup);
+                }
+                startDrawing(evt);
+            } else if (currentMode === 'select') {
+                const target = evt.target.closest('.word-group') || evt.target;
+                if (target.classList.contains('word-group') || target.classList.contains('path')) {
+                    if (selectedElement) {
+                        selectedElement.classList.remove('selected');
+                    }
+                    selectedElement = target.classList.contains('word-group') ? target : target.parentElement;
+                    selectedElement.classList.add('selected');
+                    isDragging = true;
+                    
+                    const bbox = selectedElement.getBBox();
+                    const mousePos = getMousePosition(evt);
+                    offset.x = mousePos.x - bbox.x;
+                    offset.y = mousePos.y - bbox.y;
+                } else {
+                    if (selectedElement) {
+                        selectedElement.classList.remove('selected');
+                        selectedElement = null;
+                    }
+                }
+            }
+        }
+
+        function handleMouseMove(evt) {
+            if (currentMode === 'draw' && isDrawing) {
+                draw(evt);
+            } else if (currentMode === 'select' && isDragging && selectedElement) {
+                const pos = getMousePosition(evt);
+                const dx = pos.x - offset.x;
+                const dy = pos.y - offset.y;
+                // Move words using SVG transformations
+                selectedElement.setAttribute('transform', `translate(${dx}, ${dy})`);
+            }
+        }
+
+        function handleMouseUp() {
+            if (currentMode === 'draw') {
+                stopDrawing();
+                lastDrawingTime = Date.now();
+            } else if (currentMode === 'select') {
+                isDragging = false;
+            }
+        }
+
+        function getMousePosition(evt) {
+            const rect = svg.getBoundingClientRect();
+            return {
+                x: evt.clientX - rect.left,
+                y: evt.clientY - rect.top
+            };
+        }
+
+        function getTouchPosition(touch) {
+            const rect = svg.getBoundingClientRect();
+            return {
+                x: touch.clientX - rect.left,
+                y: touch.clientY - rect.top
+            };
+        }
+
+        function startDrawing(evt) {
+            isDrawing = true;
+            const pos = getMousePosition(evt);
+            
+            currentPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            currentPath.setAttribute("class", "path");
+            currentPath.setAttribute("stroke", currentStrokeColor);
+            currentPath.setAttribute("stroke-width", currentStrokeWidth);
+            
+            const d = `M ${pos.x} ${pos.y}`;
+            currentPath.setAttribute("d", d);
+            
+            if (currentWordGroup) {
+                currentWordGroup.appendChild(currentPath);
+            } else {
+                currentWordGroup = createWordGroup();
+                pathGroup.appendChild(currentWordGroup);
+                currentWordGroup.appendChild(currentPath);
+            }
+            
+            pathData = [pos];
+        }
+
+        function draw(evt) {
+            if (!isDrawing) return;
+            
+            const pos = getMousePosition(evt);
+            pathData.push(pos);
+            
+            const d = currentPath.getAttribute("d") + ` L ${pos.x} ${pos.y}`;
+            currentPath.setAttribute("d", d);
+        }
+
+        function stopDrawing() {
+            if (!isDrawing) return;
+            isDrawing = false;
+            
+            if (pathData.length < 2) {
+                if (currentPath && currentPath.parentNode) {
+                    currentPath.parentNode.removeChild(currentPath);
+                }
+            }
+            
+            currentPath = null;
+            pathData = [];
+        }
+
+        function handleTouch(evt) {
+            evt.preventDefault();
+            const touch = evt.touches[0];
+            const mouseEvent = new MouseEvent(evt.type === 'touchstart' ? 'mousedown' : 'mousemove', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            
+            if (evt.type === 'touchstart') {
+                handleMouseDown(mouseEvent);
+            } else if (evt.type === 'touchmove') {
+                handleMouseMove(mouseEvent);
+            }
+        }
+
+        function clearDrawing() {
+            while (pathGroup.firstChild) {
+                pathGroup.removeChild(pathGroup.firstChild);
+            }
+            currentWordGroup = null;
+            selectedElement = null;
+            lastDrawingTime = 0;
+        }
+
+        function deletePath() {
+            if (selectedElement && selectedElement.parentNode) {
+                selectedElement.parentNode.removeChild(selectedElement);
+                selectedElement = null;
+            }
+        }
+
+        function updateStrokeColor(color) {
+            currentStrokeColor = color;
+            if (selectedElement) {
+                const paths = selectedElement.getElementsByTagName('path');
+                for (let path of paths) {
+                    path.setAttribute('stroke', color);
+                }
+            }
+        }
+
+        function updateStrokeWidth(width) {
+            currentStrokeWidth = width;
+            document.getElementById('strokeWidthValue').textContent = width;
+            if (selectedElement) {
+                const paths = selectedElement.getElementsByTagName('path');
+                for (let path of paths) {
+                    path.setAttribute('stroke-width', width);
+                }
+            }
+        }
+        // Initialize draw mode
+        setMode('draw');
+    </script>
+</body>
+</html> 
