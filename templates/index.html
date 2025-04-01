@@ -4,84 +4,249 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vector Whiteboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
+        :root {
+            --primary-color: #4A90E2;
+            --secondary-color: #ffffff;
+            --accent-color: #27AE60;
+            --danger-color: #E74C3C;
+            --background-color: #F5F6FA;
+            --card-background: #FFFFFF;
+            --border-radius: 12px;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
         }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-color);
+            color: var(--secondary-color);
+            line-height: 1.6;
+            padding: 2rem;
+        }
+
         .container {
             max-width: 1600px;
             margin: 0 auto;
         }
-        .whiteboard-container {
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            padding: 20px;
-            margin-bottom: 20px;
-            overflow: auto;
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: var(--secondary-color);
+            margin-bottom: 1.5rem;
+            text-align: center;
         }
+
+        .whiteboard-container {
+            background-color: var(--card-background);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            background-color: var(--background-color);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            background-color: #2C3E50;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .mode-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        button {
+            padding: 0.75rem 1.25rem;
+            border: none;
+            border-radius: var(--border-radius);
+            background-color: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 500;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        button:hover {
+            background-color: #357ABD;
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.danger {
+            background-color: var(--danger-color);
+        }
+
+        button.danger:hover {
+            background-color: #C0392B;
+        }
+
+        button.success {
+            background-color: var(--accent-color);
+        }
+
+        button.success:hover {
+            background-color: #219A52;
+        }
+
         .svg-container {
-            border: 1px solid #ccc;
+            border: 2px solid #E0E6ED;
+            border-radius: var(--border-radius);
             background-color: white;
             cursor: crosshair;
             touch-action: none;
+            transition: var(--transition);
         }
-        .controls {
-            margin-bottom: 20px;
+
+        .svg-container:hover {
+            border-color: var(--primary-color);
+        }
+
+        .color-picker, .stroke-width {
             display: flex;
-            gap: 10px;
             align-items: center;
-            flex-wrap: wrap;
+            gap: 1rem;
+            padding: 0rem;
+            border-radius: var(--border-radius);
         }
-        button {
-            padding: 8px 16px;
+
+        label {
+            font-weight: 500;
+            color: var(--secondary-color);
+            min-width: 60px;
+        }
+
+        input[type="color"] {
+            -webkit-appearance: none;
+            width: 40px;
+            height: 40px;
             border: none;
-            border-radius: 4px;
-            background-color: #007bff;
-            color: white;
+            border-radius: 8px;
             cursor: pointer;
-            transition: background-color 0.3s;
         }
-        button:hover {
-            background-color: #0056b3;
+
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
         }
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
+
+        input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 6px;
         }
-        .color-picker {
-            display: flex;
-            gap: 10px;
-            align-items: center;
+
+        input[type="range"] {
+            width: 150px;
+            height: 8px;
+            -webkit-appearance: none;
+            background: #E0E6ED;
+            border-radius: 4px;
+            outline: none;
         }
-        .stroke-width {
-            display: flex;
-            gap: 10px;
-            align-items: center;
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: var(--transition);
         }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        #strokeWidthValue {
+            min-width: 30px;
+            text-align: center;
+            font-weight: 500;
+        }
+
         .path {
             fill: none;
             stroke-linecap: round;
             stroke-linejoin: round;
         }
+
         .word-group {
             cursor: move;
         }
+
         .selected {
-            stroke: blue !important;
+            stroke: var(--primary-color) !important;
             stroke-dasharray: 5,5;
         }
-        .mode-group {
-            display: flex;
-            gap: 5px;
-            align-items: center;
-        }
+
         .tool-label {
-            margin-right: 10px;
-            font-weight: bold;
+            font-weight: 600;
+            color: var(--secondary-color);
+            margin-right: 1rem;
+        }
+
+        .file-input-label {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.75rem 1.25rem;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .file-input-label:hover {
+            background-color: #357ABD;
+            transform: translateY(-2px);
+        }
+
+        #importSVG {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .controls {
+                grid-template-columns: 1fr;
+            }
+
+            .mode-group {
+                flex-wrap: wrap;
+            }
+
+            button {
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -90,24 +255,49 @@
         <h1>Vector Whiteboard</h1>
         <div class="whiteboard-container">
             <div class="controls">
-                <div class="mode-group">
-                    <span class="tool-label">Mode:</span>
-                    <button onclick="setMode('draw')" id="drawMode">Draw</button>
-                    <button onclick="setMode('select')" id="selectMode">Select</button>
-                    <button onclick="finishWord()" id="finishWord">Finish Word</button>
+                <div class="control-group">
+                    <span class="tool-label">Mode</span>
+                    <div class="mode-group">
+                        <button onclick="setMode('draw')" id="drawMode">
+                            Draw
+                        </button>
+                        <button onclick="setMode('select')" id="selectMode">
+                            Select
+                        </button>
+                        <button onclick="finishWord()" id="finishWord">
+                            Finish Word
+                        </button>
+                    </div>
                 </div>
-                <button onclick="clearDrawing()">Clear All</button>
-                <button onclick="deletePath()">Delete Selected</button>
-                <div class="color-picker">
-                    <label for="strokeColor">Color:</label>
-                    <input type="color" id="strokeColor" value="#000000" onchange="updateStrokeColor(this.value)">
+                
+                <div class="control-group">
+                    <span class="tool-label">Actions</span>
+                    <div class="mode-group">
+                        <button onclick="clearDrawing()" class="danger">
+                            Clear All
+                        </button>
+                        <button onclick="deletePath()" class="danger">
+                            Delete Selected
+                        </button>
+                    </div>
                 </div>
-                <div class="stroke-width">
-                    <label for="strokeWidth">Width:</label>
-                    <input type="range" id="strokeWidth" min="1" max="10" value="1" onchange="updateStrokeWidth(this.value)">
-                    <span id="strokeWidthValue">1</span>
+
+                <div class="control-group">
+                    <label for="tool-color">Color</label>
+                    <div class="color-picker">
+                        <input type="color" id="strokeColor" value="#000000" onchange="updateStrokeColor(this.value)">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="strokeWidth">Width</label>
+                    <div class="stroke-width">
+                        <input type="range" id="strokeWidth" min="3" max="10" value="3" onchange="updateStrokeWidth(this.value)">
+                        <span id="strokeWidthValue">3</span>
+                    </div>
                 </div>
             </div>
+            
             <svg id="drawingBoard" class="svg-container" width="1500" height="900" xmlns="http://www.w3.org/2000/svg">
                 <g id="pathGroup"></g>
             </svg>
