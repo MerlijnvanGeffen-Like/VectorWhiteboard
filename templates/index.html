@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vector Whiteboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root {
             --primary-color: #4A90E2;
@@ -55,24 +56,24 @@
 
         .controls {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
             margin-bottom: 1.5rem;
-            background-color: var(--background-color);
-            padding: 1rem;
-            border-radius: var(--border-radius);
             background-color: #2C3E50;
+            padding: 1.5rem;
+            border-radius: var(--border-radius);
         }
 
         .control-group {
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
+            gap: 0.75rem;
         }
 
         .mode-group {
             display: flex;
-            gap: 0.5rem;
+            gap: 0.75rem;
+            flex-wrap: wrap;
         }
 
         button {
@@ -89,6 +90,13 @@
             align-items: center;
             justify-content: center;
             gap: 0.5rem;
+            min-width: 120px;
+        }
+
+        button i {
+            font-size: 1.1rem;
+            width: 20px;
+            text-align: center;
         }
 
         button:hover {
@@ -108,14 +116,6 @@
             background-color: #C0392B;
         }
 
-        button.success {
-            background-color: var(--accent-color);
-        }
-
-        button.success:hover {
-            background-color: #219A52;
-        }
-
         .svg-container {
             border: 2px solid #E0E6ED;
             border-radius: var(--border-radius);
@@ -123,33 +123,90 @@
             cursor: crosshair;
             touch-action: none;
             transition: var(--transition);
+            width: 100%;
+            height: 900px;
         }
 
         .svg-container:hover {
             border-color: var(--primary-color);
         }
 
-        .color-picker, .stroke-width {
+        .tool-label {
+            font-weight: 600;
+            color: var(--secondary-color);
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .color-squares {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .color-square {
+            width: 35px;
+            height: 35px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+            border: 2px solid transparent;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .color-square:hover {
+            transform: scale(1.1);
+        }
+
+        .color-square.selected {
+            border-color: white;
+            transform: scale(1.1);
+        }
+
+        .color-square.custom::after {
+            content: "Custom";
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7rem;
+            color: var(--secondary-color);
+            white-space: nowrap;
+        }
+
+        .eraser-active {
+            background-color: #0056b3 !important;
+        }
+
+        .color-picker {
             display: flex;
             align-items: center;
             gap: 1rem;
-            padding: 0rem;
+            padding: 0.5rem;
+            background-color: rgba(255, 255, 255, 0.1);
             border-radius: var(--border-radius);
         }
 
-        label {
-            font-weight: 500;
-            color: var(--secondary-color);
-            min-width: 60px;
+        .stroke-width {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.5rem;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: var(--border-radius);
         }
 
         input[type="color"] {
             -webkit-appearance: none;
-            width: 40px;
-            height: 40px;
+            width: 35px;
+            height: 35px;
             border: none;
             border-radius: 8px;
             cursor: pointer;
+            padding: 0;
+            background-color: transparent;
         }
 
         input[type="color"]::-webkit-color-swatch-wrapper {
@@ -158,36 +215,29 @@
 
         input[type="color"]::-webkit-color-swatch {
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
         }
 
         input[type="range"] {
-            width: 150px;
+            flex: 1;
             height: 8px;
             -webkit-appearance: none;
-            background: #E0E6ED;
+            background: rgba(255, 255, 255, 0.2);
             border-radius: 4px;
             outline: none;
         }
 
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 20px;
-            height: 20px;
-            background: var(--primary-color);
-            border-radius: 50%;
-            cursor: pointer;
-            transition: var(--transition);
-        }
-
-        input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.1);
-        }
-
         #strokeWidthValue {
-            min-width: 30px;
+            min-width: 35px;
             text-align: center;
             font-weight: 500;
+            color: var(--secondary-color);
+        }
+
+        label {
+            font-weight: 500;
+            color: var(--secondary-color);
+            min-width: 60px;
         }
 
         .path {
@@ -203,12 +253,6 @@
         .selected {
             stroke: var(--primary-color) !important;
             stroke-dasharray: 5,5;
-        }
-
-        .tool-label {
-            font-weight: 600;
-            color: var(--secondary-color);
-            margin-right: 1rem;
         }
 
         .file-input-label {
@@ -238,14 +282,19 @@
 
             .controls {
                 grid-template-columns: 1fr;
+                padding: 1rem;
             }
 
             .mode-group {
-                flex-wrap: wrap;
+                flex-direction: column;
             }
 
             button {
                 width: 100%;
+            }
+
+            .color-squares {
+                grid-template-columns: repeat(4, 1fr);
             }
         }
     </style>
@@ -259,13 +308,16 @@
                     <span class="tool-label">Mode</span>
                     <div class="mode-group">
                         <button onclick="setMode('draw')" id="drawMode">
-                            Draw
+                            <i class="fas fa-pen"></i> Draw
                         </button>
                         <button onclick="setMode('select')" id="selectMode">
-                            Select
+                            <i class="fas fa-mouse-pointer"></i> Select
+                        </button>
+                        <button onclick="setMode('eraser')" id="eraserMode">
+                            <i class="fas fa-eraser"></i> Eraser
                         </button>
                         <button onclick="finishWord()" id="finishWord">
-                            Finish Word
+                            <i class="fas fa-check"></i> Finish Word
                         </button>
                     </div>
                 </div>
@@ -274,18 +326,28 @@
                     <span class="tool-label">Actions</span>
                     <div class="mode-group">
                         <button onclick="clearDrawing()" class="danger">
-                            Clear All
+                            <i class="fas fa-trash"></i> Clear All
                         </button>
                         <button onclick="deletePath()" class="danger">
-                            Delete Selected
+                            <i class="fas fa-times"></i> Delete Selected
                         </button>
                     </div>
                 </div>
 
                 <div class="control-group">
-                    <label for="tool-color">Color</label>
-                    <div class="color-picker">
-                        <input type="color" id="strokeColor" value="#000000" onchange="updateStrokeColor(this.value)">
+                    <label for="tool-color">Colors</label>
+                    <div class="color-squares" id="colorSquares">
+                        <div class="color-square selected" style="background-color: #000000" onclick="updateStrokeColor('#000000', this)"></div>
+                        <div class="color-square" style="background-color: #FF0000" onclick="updateStrokeColor('#FF0000', this)"></div>
+                        <div class="color-square" style="background-color: #00FF00" onclick="updateStrokeColor('#00FF00', this)"></div>
+                        <div class="color-square" style="background-color: #0000FF" onclick="updateStrokeColor('#0000FF', this)"></div>
+                        <div class="color-square" style="background-color: #FFA500" onclick="updateStrokeColor('#FFA500', this)"></div>
+                        <div class="color-square" style="background-color: #800080" onclick="updateStrokeColor('#800080', this)"></div>
+                        <div class="color-square" style="background-color: #008080" onclick="updateStrokeColor('#008080', this)"></div>
+                        <div class="color-square" style="background-color: #FF69B4" onclick="updateStrokeColor('#FF69B4', this)"></div>
+                        <div class="color-square custom" id="customColorSquare" onclick="updateStrokeColor(document.getElementById('strokeColor').value, this)">
+                            <input type="color" id="strokeColor" value="#000000" onchange="updateStrokeColor(this.value, document.getElementById('customColorSquare'))">
+                        </div>
                     </div>
                 </div>
 
@@ -298,7 +360,7 @@
                 </div>
             </div>
             
-            <svg id="drawingBoard" class="svg-container" width="1500" height="900" xmlns="http://www.w3.org/2000/svg">
+            <svg id="drawingBoard" class="svg-container" viewBox="0 0 1500 900" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
                 <g id="pathGroup"></g>
             </svg>
         </div>
@@ -318,6 +380,9 @@
         let selectedElement = null;
         let offset = { x: 0, y: 0 };
         let lastDrawingTime = 0;
+        let eraserPath = null;
+        let eraserPoints = [];
+        const ERASER_SIZE = 20;
         const WORD_TIMEOUT = 1000; // 1 second timeout for word grouping
 
         // Drawing event listeners
@@ -348,9 +413,42 @@
             currentMode = mode;
             document.getElementById('drawMode').style.backgroundColor = mode === 'draw' ? '#0056b3' : '#007bff';
             document.getElementById('selectMode').style.backgroundColor = mode === 'select' ? '#0056b3' : '#007bff';
+            document.getElementById('eraserMode').style.backgroundColor = mode === 'eraser' ? '#0056b3' : '#007bff';
             if (selectedElement) {
                 selectedElement.classList.remove('selected');
                 selectedElement = null;
+            }
+            if (mode === 'eraser') {
+                createEraserCursor();
+            } else {
+                removeEraserCursor();
+            }
+        }
+
+        function createEraserCursor() {
+            const cursor = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            cursor.setAttribute("id", "eraserCursor");
+            cursor.setAttribute("r", ERASER_SIZE/2);
+            cursor.setAttribute("fill", "rgba(255, 255, 255, 0.3)");
+            cursor.setAttribute("stroke", "#000");
+            cursor.setAttribute("stroke-width", "1");
+            svg.appendChild(cursor);
+        }
+
+        function removeEraserCursor() {
+            const cursor = document.getElementById("eraserCursor");
+            if (cursor) {
+                cursor.remove();
+            }
+        }
+
+        function updateEraserCursor(evt) {
+            if (currentMode !== 'eraser') return;
+            const pos = getMousePosition(evt);
+            const cursor = document.getElementById("eraserCursor");
+            if (cursor) {
+                cursor.setAttribute("cx", pos.x);
+                cursor.setAttribute("cy", pos.y);
             }
         }
 
@@ -382,6 +480,11 @@
                         selectedElement = null;
                     }
                 }
+            } else if (currentMode === 'eraser') {
+                isDrawing = true;
+                const pos = getMousePosition(evt);
+                eraserPoints = [pos];
+                startErasing(evt);
             }
         }
 
@@ -392,8 +495,14 @@
                 const pos = getMousePosition(evt);
                 const dx = pos.x - offset.x;
                 const dy = pos.y - offset.y;
-                // Move words using SVG transformations
                 selectedElement.setAttribute('transform', `translate(${dx}, ${dy})`);
+            } else if (currentMode === 'eraser') {
+                updateEraserCursor(evt);
+                if (isDrawing) {
+                    const pos = getMousePosition(evt);
+                    eraserPoints.push(pos);
+                    erase(evt);
+                }
             }
         }
 
@@ -403,6 +512,13 @@
                 lastDrawingTime = Date.now();
             } else if (currentMode === 'select') {
                 isDragging = false;
+            } else if (currentMode === 'eraser') {
+                isDrawing = false;
+                if (eraserPath) {
+                    eraserPath.remove();
+                    eraserPath = null;
+                }
+                eraserPoints = [];
             }
         }
 
@@ -500,8 +616,17 @@
             }
         }
 
-        function updateStrokeColor(color) {
+        function updateStrokeColor(color, square = null) {
             currentStrokeColor = color;
+            document.getElementById('strokeColor').value = color;
+            
+            // Update selected square
+            const squares = document.querySelectorAll('.color-square');
+            squares.forEach(s => s.classList.remove('selected'));
+            if (square) {
+                square.classList.add('selected');
+            }
+
             if (selectedElement) {
                 const paths = selectedElement.getElementsByTagName('path');
                 for (let path of paths) {
@@ -520,6 +645,76 @@
                 }
             }
         }
+
+        function startErasing(evt) {
+            const pos = getMousePosition(evt);
+            eraserPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            eraserPath.setAttribute("class", "eraser-path");
+            eraserPath.setAttribute("stroke", "rgba(255, 255, 255, 0.5)");
+            eraserPath.setAttribute("stroke-width", ERASER_SIZE);
+            eraserPath.setAttribute("fill", "none");
+            eraserPath.setAttribute("stroke-linecap", "round");
+            eraserPath.setAttribute("stroke-linejoin", "round");
+            pathGroup.appendChild(eraserPath);
+        }
+
+        function erase(evt) {
+            if (!eraserPath) return;
+            
+            const d = eraserPoints.map((point, i) => 
+                i === 0 ? `M ${point.x} ${point.y}` : `L ${point.x} ${point.y}`
+            ).join(" ");
+            
+            eraserPath.setAttribute("d", d);
+            
+            // Check for intersections with existing paths
+            const paths = pathGroup.getElementsByClassName("path");
+            for (let path of paths) {
+                if (path === eraserPath) continue;
+                
+                const pathElement = path;
+                const pathData = pathElement.getAttribute("d");
+                const pathSegments = pathData.split(/(?=[ML])/);
+                
+                // Create new path segments excluding erased parts
+                const newSegments = [];
+                for (let i = 0; i < pathSegments.length; i++) {
+                    const segment = pathSegments[i];
+                    const points = segment.match(/\d+(\.\d+)?/g).map(Number);
+                    
+                    // Check if any point in the segment is within eraser radius
+                    let shouldKeep = true;
+                    for (let j = 0; j < points.length; j += 2) {
+                        const x = points[j];
+                        const y = points[j + 1];
+                        
+                        for (let eraserPoint of eraserPoints) {
+                            const dx = x - eraserPoint.x;
+                            const dy = y - eraserPoint.y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            
+                            if (distance < ERASER_SIZE/2) {
+                                shouldKeep = false;
+                                break;
+                            }
+                        }
+                        
+                        if (!shouldKeep) break;
+                    }
+                    
+                    if (shouldKeep) {
+                        newSegments.push(segment);
+                    }
+                }
+                
+                if (newSegments.length > 0) {
+                    pathElement.setAttribute("d", newSegments.join(" "));
+                } else {
+                    pathElement.remove();
+                }
+            }
+        }
+
         // Initialize draw mode
         setMode('draw');
     </script>
