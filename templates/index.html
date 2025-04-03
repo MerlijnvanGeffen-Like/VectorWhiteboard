@@ -10,6 +10,7 @@
         :root {
             --primary-color: #4A90E2;
             --secondary-color: #ffffff;
+            --third-color: #000000;
             --accent-color: #27AE60;
             --danger-color: #E74C3C;
             --background-color: #F5F6FA;
@@ -30,50 +31,60 @@
             background-color: var(--background-color);
             color: var(--secondary-color);
             line-height: 1.6;
-            padding: 2rem;
+            padding: 0;
+            overflow: hidden;
         }
 
         .container {
-            max-width: 1600px;
-            margin: 0 auto;
-        }
-
-        h1 {
-            font-size: 2.5rem;
-            font-weight: 600;
-            color: var(--secondary-color);
-            margin-bottom: 1.5rem;
-            text-align: center;
+            max-width: 100%;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         .whiteboard-container {
             background-color: var(--card-background);
-            border-radius: var(--border-radius);
-            box-shadow: var(--shadow);
-            padding: 1.5rem;
-            margin-bottom: 2rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            margin: 0;
+            border-radius: 0;
         }
 
         .controls {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            padding: 0.75rem 1.5rem;
             background-color: #2C3E50;
-            padding: 1.5rem;
-            border-radius: var(--border-radius);
+            margin: 0;
+            border-radius: 0;
+            border-top: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .controls-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 1.5rem;
         }
 
         .control-group {
             display: flex;
-            flex-direction: column;
+            align-items: center;
             gap: 0.75rem;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius);
         }
 
         .mode-group {
             display: flex;
-            gap: 0.75rem;
-            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: nowrap;
         }
 
         button {
@@ -90,7 +101,8 @@
             align-items: center;
             justify-content: center;
             gap: 0.5rem;
-            min-width: 120px;
+            width: 130px;
+            height: 40px;
         }
 
         button i {
@@ -117,37 +129,35 @@
         }
 
         .svg-container {
-            border: 2px solid #E0E6ED;
-            border-radius: var(--border-radius);
-            background-color: white;
-            cursor: crosshair;
-            touch-action: none;
-            transition: var(--transition);
-            width: 100%;
-            height: 900px;
+            flex: 1;
+            border: none;
+            border-radius: 0;
+            height: auto;
         }
 
-        .svg-container:hover {
-            border-color: var(--primary-color);
+        #drawingBoard {
+            width: 100%;
+            height: 100%;
         }
 
         .tool-label {
-            font-weight: 600;
+            margin: 0;
+            white-space: nowrap;
+            font-size: 0.9rem;
             color: var(--secondary-color);
-            margin-bottom: 0.5rem;
-            font-size: 1rem;
+            font-weight: 500;
+            min-width: 60px;
         }
 
         .color-squares {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 0.75rem;
-            margin-bottom: 0.75rem;
+            display: flex;
+            gap: 0.4rem;
+            margin: 0;
         }
 
         .color-square {
-            width: 35px;
-            height: 35px;
+            width: 30px;
+            height: 30px;
             border-radius: 8px;
             cursor: pointer;
             transition: var(--transition);
@@ -165,15 +175,36 @@
             transform: scale(1.1);
         }
 
+        .color-square.custom {
+            width: 30px;
+            height: 30px;
+            background-color: #ffffff;
+            padding: 0;
+            overflow: hidden;
+            position: relative;
+        }
+
         .color-square.custom::after {
-            content: "Custom";
+            content: '\f53f';  /* Font Awesome eyedropper icon */
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             position: absolute;
-            bottom: -20px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 0.7rem;
-            color: var(--secondary-color);
-            white-space: nowrap;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: rgba(0, 0, 0, 0.7);
+            font-size: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .color-square.custom:hover::after {
+            background-color: rgba(255, 255, 255, 0.3);
+            color: rgba(0, 0, 0, 0.9);
         }
 
         .eraser-active {
@@ -192,21 +223,25 @@
         .stroke-width {
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 0.75rem;
             padding: 0.5rem;
             background-color: rgba(255, 255, 255, 0.1);
             border-radius: var(--border-radius);
+            min-width: 150px;
         }
 
         input[type="color"] {
             -webkit-appearance: none;
-            width: 35px;
-            height: 35px;
+            width: 30px;
+            height: 30px;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             padding: 0;
             background-color: transparent;
+            opacity: 0;
+            position: relative;
+            z-index: 1;
         }
 
         input[type="color"]::-webkit-color-swatch-wrapper {
@@ -219,6 +254,7 @@
         }
 
         input[type="range"] {
+            width: 100px;
             flex: 1;
             height: 8px;
             -webkit-appearance: none;
@@ -248,11 +284,23 @@
 
         .word-group {
             cursor: move;
+            pointer-events: bounding-box;
+        }
+
+        .word-group::after {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            right: -10px;
+            bottom: -10px;
+            pointer-events: none;
         }
 
         .selected {
             stroke: var(--primary-color) !important;
             stroke-dasharray: 5,5;
+            stroke-width: 3 !important;
         }
 
         .file-input-label {
@@ -275,26 +323,26 @@
             display: none;
         }
 
+        h1 {
+            margin: 0;
+            padding: 1rem;
+            background-color: #2C3E50;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
         @media (max-width: 768px) {
-            body {
-                padding: 1rem;
-            }
-
             .controls {
-                grid-template-columns: 1fr;
+                flex-direction: column;
                 padding: 1rem;
             }
 
-            .mode-group {
-                flex-direction: column;
-            }
-
-            button {
+            .control-group {
                 width: 100%;
             }
 
-            .color-squares {
-                grid-template-columns: repeat(4, 1fr);
+            .mode-group {
+                flex-wrap: wrap;
+                justify-content: center;
             }
         }
     </style>
@@ -304,63 +352,76 @@
         <h1>Vector Whiteboard</h1>
         <div class="whiteboard-container">
             <div class="controls">
-                <div class="control-group">
-                    <span class="tool-label">Mode</span>
-                    <div class="mode-group">
-                        <button onclick="setMode('draw')" id="drawMode">
-                            <i class="fas fa-pen"></i> Draw
-                        </button>
-                        <button onclick="setMode('select')" id="selectMode">
-                            <i class="fas fa-mouse-pointer"></i> Select
-                        </button>
-                        <button onclick="setMode('eraser')" id="eraserMode">
-                            <i class="fas fa-eraser"></i> Eraser
-                        </button>
-                        <button onclick="finishWord()" id="finishWord">
-                            <i class="fas fa-check"></i> Finish Word
-                        </button>
+                <div class="controls-row">
+                    <div class="control-group">
+                        <span class="tool-label">Mode</span>
+                        <div class="mode-group">
+                            <button onclick="setMode('draw')" id="drawMode">
+                                <i class="fas fa-pen"></i> Draw
+                            </button>
+                            <button onclick="setMode('select')" id="selectMode">
+                                <i class="fas fa-mouse-pointer"></i> Select
+                            </button>
+                            <button onclick="setMode('move')" id="moveMode">
+                                <i class="fas fa-arrows-alt"></i> Move
+                            </button>
+                            <button onclick="setMode('eraser')" id="eraserMode">
+                                <i class="fas fa-eraser"></i> Eraser
+                            </button>
+                            <button onclick="finishWord()" id="finishWord">
+                                <i class="fas fa-check"></i> Finish Word
+                            </button>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="control-group">
-                    <span class="tool-label">Actions</span>
-                    <div class="mode-group">
-                        <button onclick="clearDrawing()" class="danger">
-                            <i class="fas fa-trash"></i> Clear All
-                        </button>
-                        <button onclick="deletePath()" class="danger">
-                            <i class="fas fa-times"></i> Delete Selected
-                        </button>
-                    </div>
-                </div>
 
-                <div class="control-group">
-                    <label for="tool-color">Colors</label>
-                    <div class="color-squares" id="colorSquares">
-                        <div class="color-square selected" style="background-color: #000000" onclick="updateStrokeColor('#000000', this)"></div>
-                        <div class="color-square" style="background-color: #FF0000" onclick="updateStrokeColor('#FF0000', this)"></div>
-                        <div class="color-square" style="background-color: #00FF00" onclick="updateStrokeColor('#00FF00', this)"></div>
-                        <div class="color-square" style="background-color: #0000FF" onclick="updateStrokeColor('#0000FF', this)"></div>
-                        <div class="color-square" style="background-color: #FFA500" onclick="updateStrokeColor('#FFA500', this)"></div>
-                        <div class="color-square" style="background-color: #800080" onclick="updateStrokeColor('#800080', this)"></div>
-                        <div class="color-square" style="background-color: #008080" onclick="updateStrokeColor('#008080', this)"></div>
-                        <div class="color-square" style="background-color: #FF69B4" onclick="updateStrokeColor('#FF69B4', this)"></div>
-                        <div class="color-square custom" id="customColorSquare" onclick="updateStrokeColor(document.getElementById('strokeColor').value, this)">
-                            <input type="color" id="strokeColor" value="#000000" onchange="updateStrokeColor(this.value, document.getElementById('customColorSquare'))">
+                    <div class="control-group">
+                        <span class="tool-label">Colors</span>
+                        <div class="color-squares" id="colorSquares">
+                            <div class="color-square selected" style="background-color: #000000" onclick="updateStrokeColor('#000000', this)"></div>
+                            <div class="color-square" style="background-color: #FF0000" onclick="updateStrokeColor('#FF0000', this)"></div>
+                            <div class="color-square" style="background-color: #00FF00" onclick="updateStrokeColor('#00FF00', this)"></div>
+                            <div class="color-square" style="background-color: #0000FF" onclick="updateStrokeColor('#0000FF', this)"></div>
+                            <div class="color-square" style="background-color: #FFA500" onclick="updateStrokeColor('#FFA500', this)"></div>
+                            <div class="color-square" style="background-color: #800080" onclick="updateStrokeColor('#800080', this)"></div>
+                            <div class="color-square" style="background-color: #008080" onclick="updateStrokeColor('#008080', this)"></div>
+                            <div class="color-square" style="background-color: #FF69B4" onclick="updateStrokeColor('#FF69B4', this)"></div>
+                            <div class="color-square custom" id="customColorSquare" onclick="updateStrokeColor(document.getElementById('strokeColor').value, this)">
+                                <input type="color" id="strokeColor" value="#FFFFFF" onchange="updateStrokeColor(this.value, document.getElementById('customColorSquare'))">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <span class="tool-label">Width</span>
+                        <div class="stroke-width">
+                            <input type="range" id="strokeWidth" min="3" max="10" value="3" onchange="updateStrokeWidth(this.value)">
+                            <span id="strokeWidthValue">3</span>
                         </div>
                     </div>
                 </div>
-
-                <div class="control-group">
-                    <label for="strokeWidth">Width</label>
-                    <div class="stroke-width">
-                        <input type="range" id="strokeWidth" min="3" max="10" value="3" onchange="updateStrokeWidth(this.value)">
-                        <span id="strokeWidthValue">3</span>
+                
+                <div class="controls-row">
+                    <div class="control-group">
+                        <span class="tool-label">Actions</span>
+                        <div class="mode-group">
+                            <button onclick="clearDrawing()" class="danger">
+                                <i class="fas fa-trash"></i> Clear All
+                            </button>
+                            <button onclick="deletePath()" class="danger">
+                                <i class="fas fa-times"></i> Delete Selected
+                            </button>
+                            <button onclick="createPoll()">
+                                <i class="fas fa-poll"></i> Create Poll
+                            </button>
+                            <button onclick="deletePoll()" class="danger">
+                                <i class="fas fa-trash-alt"></i> Delete Poll
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <svg id="drawingBoard" class="svg-container" viewBox="0 0 1500 900" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+            <svg id="drawingBoard" class="svg-container" viewBox="0 0 2000 900" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
                 <g id="pathGroup"></g>
             </svg>
         </div>
@@ -384,6 +445,14 @@
         let eraserPoints = [];
         const ERASER_SIZE = 20;
         const WORD_TIMEOUT = 1000; // 1 second timeout for word grouping
+        let currentPoll = null;
+        let pollOptions = new Map(); // Map to store poll options and their votes
+        let selectedElements = new Set(); // Track multiple selected elements
+        let isMultiSelect = false; // Track if multi-select is active
+        let lastTouchTime = 0;
+        const DOUBLE_TAP_DELAY = 300; // Time in ms between taps to count as double tap
+        let touchStartTime = 0;
+        const LONG_PRESS_DURATION = 500; // Time in ms for long press
 
         // Drawing event listeners
         svg.addEventListener('mousedown', handleMouseDown);
@@ -392,14 +461,28 @@
         svg.addEventListener('mouseleave', handleMouseUp);
 
         // Touch support
-        svg.addEventListener('touchstart', handleTouch);
-        svg.addEventListener('touchmove', handleTouch);
+        svg.addEventListener('touchstart', handleTouch, { passive: false });
+        svg.addEventListener('touchmove', handleTouch, { passive: false });
         svg.addEventListener('touchend', handleMouseUp);
+
+        // Add double-click handler
+        svg.addEventListener('dblclick', handleDoubleClick);
 
         function createWordGroup() {
             const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
             group.setAttribute("class", "word-group");
             return group;
+        }
+
+        function createPath(pos) {
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("class", "path");
+            path.setAttribute("stroke", currentStrokeColor);
+            path.setAttribute("stroke-width", currentStrokeWidth);
+            path.setAttribute("d", `M ${pos.x} ${pos.y}`);
+            path.setAttribute("stroke-linecap", "round");
+            path.setAttribute("stroke-linejoin", "round");
+            return path;
         }
 
         function finishWord() {
@@ -413,11 +496,12 @@
             currentMode = mode;
             document.getElementById('drawMode').style.backgroundColor = mode === 'draw' ? '#0056b3' : '#007bff';
             document.getElementById('selectMode').style.backgroundColor = mode === 'select' ? '#0056b3' : '#007bff';
+            document.getElementById('moveMode').style.backgroundColor = mode === 'move' ? '#0056b3' : '#007bff';
             document.getElementById('eraserMode').style.backgroundColor = mode === 'eraser' ? '#0056b3' : '#007bff';
-            if (selectedElement) {
-                selectedElement.classList.remove('selected');
-                selectedElement = null;
-            }
+            
+            // Clear all selections when changing modes
+            clearSelections();
+            
             if (mode === 'eraser') {
                 createEraserCursor();
             } else {
@@ -452,7 +536,7 @@
             }
         }
 
-        function handleMouseDown(evt) {
+        function handleMouseDown(evt, isMultiSelect = false) {
             if (currentMode === 'draw') {
                 const now = Date.now();
                 if (now - lastDrawingTime > WORD_TIMEOUT) {
@@ -460,24 +544,44 @@
                     pathGroup.appendChild(currentWordGroup);
                 }
                 startDrawing(evt);
-            } else if (currentMode === 'select') {
+            } else if (currentMode === 'select' || currentMode === 'move') {
                 const target = evt.target.closest('.word-group') || evt.target;
                 if (target.classList.contains('word-group') || target.classList.contains('path')) {
-                    if (selectedElement) {
-                        selectedElement.classList.remove('selected');
-                    }
-                    selectedElement = target.classList.contains('word-group') ? target : target.parentElement;
-                    selectedElement.classList.add('selected');
-                    isDragging = true;
+                    const wordGroup = target.classList.contains('word-group') ? target : target.parentElement;
                     
-                    const bbox = selectedElement.getBBox();
-                    const mousePos = getMousePosition(evt);
-                    offset.x = mousePos.x - bbox.x;
-                    offset.y = mousePos.y - bbox.y;
+                    if (currentMode === 'select') {
+                        if (evt.ctrlKey || evt.metaKey || isMultiSelect) {
+                            // Toggle selection with Ctrl/Cmd key or long press
+                            if (selectedElements.has(wordGroup)) {
+                                selectedElements.delete(wordGroup);
+                                wordGroup.classList.remove('selected');
+                            } else {
+                                selectedElements.add(wordGroup);
+                                wordGroup.classList.add('selected');
+                            }
+                        } else {
+                            // Single selection
+                            clearSelections();
+                            selectedElements.add(wordGroup);
+                            wordGroup.classList.add('selected');
+                        }
+                        selectedElement = wordGroup;
+                    } else if (currentMode === 'move') {
+                        clearSelections();
+                        selectedElements.add(wordGroup);
+                        wordGroup.classList.add('selected');
+                        selectedElement = wordGroup;
+                        isDragging = true;
+                        
+                        const bbox = wordGroup.getBBox();
+                        const mousePos = getMousePosition(evt);
+                        offset.x = mousePos.x - bbox.x;
+                        offset.y = mousePos.y - bbox.y;
+                    }
                 } else {
-                    if (selectedElement) {
-                        selectedElement.classList.remove('selected');
-                        selectedElement = null;
+                    // Clicked outside any word
+                    if (!evt.ctrlKey && !evt.metaKey && !isMultiSelect) {
+                        clearSelections();
                     }
                 }
             } else if (currentMode === 'eraser') {
@@ -491,7 +595,7 @@
         function handleMouseMove(evt) {
             if (currentMode === 'draw' && isDrawing) {
                 draw(evt);
-            } else if (currentMode === 'select' && isDragging && selectedElement) {
+            } else if (currentMode === 'move' && isDragging && selectedElement) {
                 const pos = getMousePosition(evt);
                 const dx = pos.x - offset.x;
                 const dy = pos.y - offset.y;
@@ -524,31 +628,71 @@
 
         function getMousePosition(evt) {
             const rect = svg.getBoundingClientRect();
-            return {
-                x: evt.clientX - rect.left,
-                y: evt.clientY - rect.top
-            };
+            const viewBox = svg.viewBox.baseVal;
+            
+            // Calculate the scale factors based on the actual container size
+            const scaleX = viewBox.width / rect.width;
+            const scaleY = viewBox.height / rect.height;
+            
+            // Get the mouse position relative to the SVG element
+            let x = evt.clientX - rect.left;
+            let y = evt.clientY - rect.top;
+            
+            // Scale the coordinates
+            x = x * scaleX;
+            y = y * scaleY;
+            
+            // Ensure coordinates stay within bounds with a small margin
+            x = Math.max(5, Math.min(x, viewBox.width - 5));
+            y = Math.max(5, Math.min(y, viewBox.height - 5));
+            
+            return { x, y };
         }
 
         function getTouchPosition(touch) {
             const rect = svg.getBoundingClientRect();
+            const viewBox = svg.viewBox.baseVal;
+            const scaleX = viewBox.width / rect.width;
+            const scaleY = viewBox.height / rect.height;
+            
+            // Calculate position relative to the SVG element
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            
+            // Scale the position to match the SVG viewBox
             return {
-                x: touch.clientX - rect.left,
-                y: touch.clientY - rect.top
+                x: x * scaleX + viewBox.x,
+                y: y * scaleY + viewBox.y
             };
+        }
+
+        function filterPoints(points) {
+            if (points.length < 3) return points;
+            
+            const filtered = [points[0]];
+            let lastPoint = points[0];
+            
+            for (let i = 1; i < points.length; i++) {
+                const currentPoint = points[i];
+                const dx = currentPoint.x - lastPoint.x;
+                const dy = currentPoint.y - lastPoint.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Only add point if it's far enough from the last point
+                if (distance > 2) {
+                    filtered.push(currentPoint);
+                    lastPoint = currentPoint;
+                }
+            }
+            
+            return filtered;
         }
 
         function startDrawing(evt) {
             isDrawing = true;
             const pos = getMousePosition(evt);
             
-            currentPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            currentPath.setAttribute("class", "path");
-            currentPath.setAttribute("stroke", currentStrokeColor);
-            currentPath.setAttribute("stroke-width", currentStrokeWidth);
-            
-            const d = `M ${pos.x} ${pos.y}`;
-            currentPath.setAttribute("d", d);
+            currentPath = createPath(pos);
             
             if (currentWordGroup) {
                 currentWordGroup.appendChild(currentPath);
@@ -567,7 +711,16 @@
             const pos = getMousePosition(evt);
             pathData.push(pos);
             
-            const d = currentPath.getAttribute("d") + ` L ${pos.x} ${pos.y}`;
+            // Filter points to remove outliers and smooth the line
+            const filteredPoints = filterPoints(pathData);
+            
+            // Create a smooth path using line segments
+            let d = `M ${filteredPoints[0].x} ${filteredPoints[0].y}`;
+            for (let i = 1; i < filteredPoints.length; i++) {
+                const curr = filteredPoints[i];
+                d += ` L ${curr.x} ${curr.y}`;
+            }
+            
             currentPath.setAttribute("d", d);
         }
 
@@ -594,6 +747,21 @@
             });
             
             if (evt.type === 'touchstart') {
+                const currentTime = Date.now();
+                if (currentTime - lastTouchTime < DOUBLE_TAP_DELAY) {
+                    // Double tap detected
+                    handleDoubleClick(mouseEvent);
+                } else {
+                    // Start long press timer
+                    touchStartTime = currentTime;
+                    setTimeout(() => {
+                        if (Date.now() - touchStartTime >= LONG_PRESS_DURATION) {
+                            // Long press detected - enable multi-select
+                            handleMouseDown(mouseEvent, true);
+                        }
+                    }, LONG_PRESS_DURATION);
+                }
+                lastTouchTime = currentTime;
                 handleMouseDown(mouseEvent);
             } else if (evt.type === 'touchmove') {
                 handleMouseMove(mouseEvent);
@@ -713,6 +881,309 @@
                     pathElement.remove();
                 }
             }
+        }
+
+        function deletePoll() {
+            if (currentPoll) {
+                currentPoll = null;
+                const pollDisplay = document.getElementById('pollDisplay');
+                if (pollDisplay) {
+                    pollDisplay.remove();
+                }
+                // Remove poll attributes from all words
+                const wordGroups = document.querySelectorAll('.word-group');
+                wordGroups.forEach(group => {
+                    group.removeAttribute('data-word-id');
+                    group.removeAttribute('data-text');
+                });
+            }
+        }
+
+        function createPoll() {
+            if (selectedElements.size === 0) {
+                alert("Please select at least one word to add to the poll");
+                return;
+            }
+
+            if (!currentPoll) {
+                currentPoll = {
+                    options: [],
+                    votes: new Map(),
+                    colors: new Map() // Store colors for each option
+                };
+            }
+
+            // Array of nice colors for poll options
+            const pollColors = [
+                '#FF0000', // Bright Red
+                '#00FF00', // Bright Green
+                '#0000FF', // Bright Blue
+                '#FF00FF', // Bright Magenta
+                '#FFFF00', // Bright Yellow
+                '#00FFFF', // Bright Cyan
+                '#FF8000', // Bright Orange
+                '#8000FF', // Bright Purple
+                '#00FF80', // Bright Lime
+                '#FF0080'  // Bright Pink
+            ];
+
+            selectedElements.forEach(wordGroup => {
+                const paths = wordGroup.getElementsByTagName('path');
+                if (paths.length > 0) {
+                    const wordId = 'word-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+                    wordGroup.setAttribute('data-word-id', wordId);
+                    
+                    // Assign a random color from our poll colors array
+                    const randomColor = pollColors[Math.floor(Math.random() * pollColors.length)];
+                    currentPoll.colors.set(wordId, randomColor);
+                    
+                    // Update the color of all paths in the word group to match the poll color
+                    for (let path of paths) {
+                        path.setAttribute('stroke', randomColor);
+                    }
+                    
+                    // Get the actual text from the drawn word
+                    const wordText = wordGroup.getAttribute('data-text') || 'Drawn Word ' + (currentPoll.options.length + 1);
+                    wordGroup.setAttribute('data-text', wordText);
+
+                    if (!currentPoll.options.includes(wordId)) {
+                        currentPoll.options.push(wordId);
+                        currentPoll.votes.set(wordId, 0);
+                    }
+                }
+            });
+
+            updatePollDisplay();
+        }
+
+        function updatePollDisplay() {
+            const existingPoll = document.getElementById('pollDisplay');
+            if (existingPoll) {
+                existingPoll.remove();
+            }
+
+            if (!currentPoll || currentPoll.options.length === 0) return;
+
+            const pollContainer = document.createElement('div');
+            pollContainer.id = 'pollDisplay';
+            pollContainer.style.position = 'absolute';
+            pollContainer.style.top = '20px';
+            pollContainer.style.right = '20px';
+            pollContainer.style.backgroundColor = 'white';
+            pollContainer.style.padding = '15px';
+            pollContainer.style.borderRadius = '8px';
+            pollContainer.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+            pollContainer.style.zIndex = '1000';
+            pollContainer.style.color = 'black';
+            pollContainer.style.minWidth = '250px';
+            pollContainer.style.maxWidth = '400px';
+            pollContainer.style.cursor = 'move';
+            pollContainer.style.userSelect = 'none';
+
+            // Create title bar with drag handle
+            const titleBar = document.createElement('div');
+            titleBar.style.display = 'flex';
+            titleBar.style.alignItems = 'center';
+            titleBar.style.marginBottom = '15px';
+            titleBar.style.cursor = 'move';
+            titleBar.style.userSelect = 'none';
+            titleBar.style.borderBottom = '2px solid #000000';
+            titleBar.style.paddingBottom = '8px';
+
+            const dragHandle = document.createElement('i');
+            dragHandle.className = 'fas fa-grip-vertical';
+            dragHandle.style.marginRight = '10px';
+            dragHandle.style.color = '#000000';
+            dragHandle.style.cursor = 'move';
+
+            const pollTitle = document.createElement('h3');
+            pollTitle.textContent = 'Current Poll';
+            pollTitle.style.margin = '0';
+            pollTitle.style.flex = '1';
+            pollTitle.style.textAlign = 'center';
+
+            titleBar.appendChild(dragHandle);
+            titleBar.appendChild(pollTitle);
+            pollContainer.appendChild(titleBar);
+
+            // Add drag functionality
+            let isDragging = false;
+            let currentX;
+            let currentY;
+            let initialX;
+            let initialY;
+            let xOffset = 0;
+            let yOffset = 0;
+
+            function dragStart(e) {
+                if (e.type === "touchstart") {
+                    initialX = e.touches[0].clientX - xOffset;
+                    initialY = e.touches[0].clientY - yOffset;
+                } else {
+                    initialX = e.clientX - xOffset;
+                    initialY = e.clientY - yOffset;
+                }
+                
+                if (e.target === titleBar || e.target === dragHandle || e.target === pollTitle) {
+                    isDragging = true;
+                }
+            }
+
+            function dragEnd(e) {
+                initialX = currentX;
+                initialY = currentY;
+                isDragging = false;
+            }
+
+            function drag(e) {
+                if (isDragging) {
+                    e.preventDefault();
+                    
+                    if (e.type === "touchmove") {
+                        currentX = e.touches[0].clientX - initialX;
+                        currentY = e.touches[0].clientY - initialY;
+                    } else {
+                        currentX = e.clientX - initialX;
+                        currentY = e.clientY - initialY;
+                    }
+
+                    xOffset = currentX;
+                    yOffset = currentY;
+
+                    setTranslate(currentX, currentY, pollContainer);
+                }
+            }
+
+            function setTranslate(xPos, yPos, el) {
+                el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`;
+            }
+
+            titleBar.addEventListener("mousedown", dragStart, false);
+            document.addEventListener("mousemove", drag, false);
+            document.addEventListener("mouseup", dragEnd, false);
+
+            titleBar.addEventListener("touchstart", dragStart, false);
+            document.addEventListener("touchmove", drag, false);
+            document.addEventListener("touchend", dragEnd, false);
+
+            // Calculate total votes
+            let totalVotes = 0;
+            currentPoll.votes.forEach(votes => {
+                totalVotes += votes;
+            });
+
+            // Create options container
+            const optionsContainer = document.createElement('div');
+            optionsContainer.style.display = 'flex';
+            optionsContainer.style.flexDirection = 'column';
+            optionsContainer.style.gap = '12px';
+
+            currentPoll.options.forEach((optionId, index) => {
+                const optionDiv = document.createElement('div');
+                optionDiv.style.display = 'flex';
+                optionDiv.style.flexDirection = 'column';
+                optionDiv.style.gap = '5px';
+                
+                const voteCount = currentPoll.votes.get(optionId) || 0;
+                const wordElement = document.querySelector(`[data-word-id="${optionId}"]`);
+                const optionText = wordElement ? wordElement.getAttribute('data-text') : `Drawn Word ${index + 1}`;
+                const percentage = totalVotes > 0 ? (voteCount / totalVotes) * 100 : 0;
+                const optionColor = currentPoll.colors.get(optionId) || '#000000';
+                
+                // Create option header
+                const optionHeader = document.createElement('div');
+                optionHeader.style.display = 'flex';
+                optionHeader.style.justifyContent = 'space-between';
+                optionHeader.style.alignItems = 'center';
+                
+                const optionName = document.createElement('span');
+                optionName.textContent = optionText;
+                optionName.style.fontWeight = '500';
+                optionName.style.color = 'black';
+                optionName.style.cursor = 'pointer';
+                optionName.style.padding = '4px 8px';
+                optionName.style.borderRadius = '4px';
+                optionName.style.transition = 'background-color 0.2s';
+                optionName.onmouseover = () => optionName.style.backgroundColor = `${optionColor}20`;
+                optionName.onmouseout = () => optionName.style.backgroundColor = 'transparent';
+                optionName.onclick = () => {
+                    const currentVotes = currentPoll.votes.get(optionId) || 0;
+                    currentPoll.votes.set(optionId, currentVotes + 1);
+                    updatePollDisplay();
+                };
+                
+                const votesDisplay = document.createElement('span');
+                votesDisplay.textContent = `${voteCount} vote${voteCount !== 1 ? 's' : ''}`;
+                votesDisplay.style.color = 'black';
+                votesDisplay.style.fontSize = '0.9em';
+                votesDisplay.style.fontWeight = '500';
+                
+                optionHeader.appendChild(optionName);
+                optionHeader.appendChild(votesDisplay);
+                
+                // Create color button for voting
+                const colorButton = document.createElement('div');
+                colorButton.style.width = '100%';
+                colorButton.style.height = '30px';
+                colorButton.style.backgroundColor = optionColor;
+                colorButton.style.borderRadius = '4px';
+                colorButton.style.cursor = 'pointer';
+                colorButton.style.transition = 'transform 0.2s, box-shadow 0.2s';
+                colorButton.onmouseover = () => {
+                    colorButton.style.transform = 'scale(1.02)';
+                    colorButton.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
+                };
+                colorButton.onmouseout = () => {
+                    colorButton.style.transform = 'scale(1)';
+                    colorButton.style.boxShadow = 'none';
+                };
+                colorButton.onclick = () => {
+                    const currentVotes = currentPoll.votes.get(optionId) || 0;
+                    currentPoll.votes.set(optionId, currentVotes + 1);
+                    updatePollDisplay();
+                };
+                
+                // Add percentage text
+                const percentageText = document.createElement('div');
+                percentageText.textContent = `${percentage.toFixed(1)}%`;
+                percentageText.style.fontSize = '0.8em';
+                percentageText.style.color = 'black';
+                percentageText.style.textAlign = 'right';
+                percentageText.style.fontWeight = '500';
+                
+                optionDiv.appendChild(optionHeader);
+                optionDiv.appendChild(colorButton);
+                optionDiv.appendChild(percentageText);
+                
+                optionsContainer.appendChild(optionDiv);
+            });
+
+            pollContainer.appendChild(optionsContainer);
+            document.body.appendChild(pollContainer);
+        }
+
+        function handleDoubleClick(evt) {
+            if (currentMode !== 'select') return;
+            
+            const target = evt.target.closest('.word-group') || evt.target;
+            if (target.classList.contains('word-group') || target.classList.contains('path')) {
+                const wordGroup = target.classList.contains('word-group') ? target : target.parentElement;
+                const wordId = wordGroup.getAttribute('data-word-id');
+                
+                if (wordId && currentPoll && currentPoll.options.includes(wordId)) {
+                    const currentVotes = currentPoll.votes.get(wordId) || 0;
+                    currentPoll.votes.set(wordId, currentVotes + 1);
+                    updatePollDisplay();
+                }
+            }
+        }
+
+        function clearSelections() {
+            selectedElements.forEach(element => {
+                element.classList.remove('selected');
+            });
+            selectedElements.clear();
+            selectedElement = null;
         }
 
         // Initialize draw mode
