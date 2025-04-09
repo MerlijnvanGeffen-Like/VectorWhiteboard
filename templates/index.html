@@ -24,6 +24,10 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
         }
 
         body {
@@ -416,6 +420,12 @@
                             <button onclick="deletePoll()" class="danger">
                                 <i class="fas fa-trash-alt"></i> Delete Poll
                             </button>
+                            <button onclick="createQuiz()">
+                                <i class="fas fa-question-circle"></i> Create Quiz
+                            </button>
+                            <button onclick="deleteQuiz()" class="danger">
+                                <i class="fas fa-trash-alt"></i> Delete Quiz
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -453,6 +463,15 @@
         const DOUBLE_TAP_DELAY = 300; // Time in ms between taps to count as double tap
         let touchStartTime = 0;
         const LONG_PRESS_DURATION = 500; // Time in ms for long press
+        let currentQuizAnswers = null;
+        let quizPlaceholders = new Set();
+        let currentQuestionPaths = new Map(); // Change from array to Map
+        let currentAnswerPaths = new Map();
+        let quizState = {
+            questions: [],
+            currentQuestion: -1,
+            currentAnswers: new Set() // Track current answers for each question
+        };
 
         // Drawing event listeners
         svg.addEventListener('mousedown', handleMouseDown);
@@ -693,6 +712,38 @@
             const pos = getMousePosition(evt);
             
             currentPath = createPath(pos);
+            
+            // Remove placeholder text if drawing inside a quiz box
+            if (currentQuizAnswers !== null) {
+                const clickedElement = document.elementFromPoint(evt.clientX, evt.clientY);
+                const box = clickedElement?.closest('g[data-box-id]'); // Changed to handle both question and answer boxes
+                
+                if (box) {
+                    const boxId = box.getAttribute('data-box-id');
+                    const placeholder = box.querySelector('text[data-placeholder]');
+                    if (placeholder) {
+                        placeholder.remove();
+                    }
+                    
+                    // Store the path with its position relative to the box
+                    const boxRect = box.getBoundingClientRect();
+                    const svgRect = svg.getBoundingClientRect();
+                    const offsetX = boxRect.left - svgRect.left;
+                    const offsetY = boxRect.top - svgRect.top;
+                    
+                    // Use currentQuestionPaths for question box, currentAnswerPaths for answer boxes
+                    const pathsMap = boxId === 'question' ? currentQuestionPaths : currentAnswerPaths;
+                    
+                    if (!pathsMap.has(boxId)) {
+                        pathsMap.set(boxId, []);
+                    }
+                    pathsMap.get(boxId).push({
+                        path: currentPath,
+                        offsetX: offsetX,
+                        offsetY: offsetY
+                    });
+                }
+            }
             
             if (currentWordGroup) {
                 currentWordGroup.appendChild(currentPath);
@@ -1165,16 +1216,10 @@
         function handleDoubleClick(evt) {
             if (currentMode !== 'select') return;
             
-            const target = evt.target.closest('.word-group') || evt.target;
-            if (target.classList.contains('word-group') || target.classList.contains('path')) {
-                const wordGroup = target.classList.contains('word-group') ? target : target.parentElement;
-                const wordId = wordGroup.getAttribute('data-word-id');
-                
-                if (wordId && currentPoll && currentPoll.options.includes(wordId)) {
-                    const currentVotes = currentPoll.votes.get(wordId) || 0;
-                    currentPoll.votes.set(wordId, currentVotes + 1);
-                    updatePollDisplay();
-                }
+            const target = evt.target.closest('rect');
+            if (target && target.parentNode.getAttribute('data-box-id')) {
+                const boxId = target.parentNode.getAttribute('data-box-id');
+                handleAnswerVote(boxId, target, true);
             }
         }
 
@@ -1184,6 +1229,604 @@
             });
             selectedElements.clear();
             selectedElement = null;
+        }
+
+        function deleteQuiz() {
+            const quizBoxes = document.getElementById('quizBoxes');
+            if (quizBoxes) {
+                quizBoxes.remove();
+                currentQuizAnswers = null;
+                quizPlaceholders.clear();
+                quizState.currentQuestion = -1;
+                quizState.questions = [];
+            }
+        }
+
+        function clearWhiteboard() {
+            while (pathGroup.firstChild) {
+                pathGroup.removeChild(pathGroup.firstChild);
+            }
+            currentWordGroup = null;
+            selectedElement = null;
+            lastDrawingTime = 0;
+        }
+
+        function createQuiz() {
+            if (quizState.currentQuestion === -1) {
+                // Initialize new quiz
+                quizState.questions = [];
+                quizState.currentQuestion = 0;
+            } else {
+                // Clear whiteboard for new question
+                clearWhiteboard();
+            }
+
+            // Reset current paths
+            currentQuestionPaths = new Map();
+            currentAnswerPaths = new Map();
+
+            // Create boxes directly on the SVG whiteboard
+            const boxGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            boxGroup.id = 'quizBoxes';
+            boxGroup.style.pointerEvents = 'none';
+            currentQuizAnswers = new Set();
+            quizPlaceholders = new Set();
+
+            // Create background group for boxes
+            const boxBackgrounds = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            boxBackgrounds.setAttribute('class', 'quiz-backgrounds');
+
+            // Create question box at the top
+            const questionBox = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            questionBox.id = 'quizQuestionBox';
+            questionBox.setAttribute('data-box-id', 'question');
+
+            const questionRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            questionRect.setAttribute('x', '300');
+            questionRect.setAttribute('y', '50');
+            questionRect.setAttribute('width', '1400');
+            questionRect.setAttribute('height', '100');
+            questionRect.setAttribute('fill', 'white');
+            questionRect.setAttribute('stroke', '#ff4b4b');
+            questionRect.setAttribute('stroke-width', '2');
+            questionRect.setAttribute('rx', '10');
+            questionRect.style.pointerEvents = 'all';
+
+            // Add "Write question here" text
+            const questionText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            questionText.setAttribute('x', '320');
+            questionText.setAttribute('y', '100');
+            questionText.setAttribute('fill', '#999');
+            questionText.setAttribute('font-size', '20');
+            questionText.setAttribute('data-placeholder', 'true');
+            questionText.textContent = 'Write your question here';
+            quizPlaceholders.add(questionText);
+
+            questionBox.appendChild(questionRect);
+            questionBox.appendChild(questionText);
+            boxBackgrounds.appendChild(questionBox);
+
+            // Create 4 answer boxes in a 2x2 grid
+            const boxWidth = 650;
+            const boxHeight = 150;
+            const gap = 100;
+            const startX = 300;
+            const startY = 200;
+
+            // Create clipping paths for the boxes
+            const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+            svg.appendChild(defs);
+
+            // Create a group for the drawings that will be clipped
+            const drawingGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            drawingGroup.id = 'quizDrawingGroup';
+            pathGroup.appendChild(drawingGroup);
+
+            for (let row = 0; row < 2; row++) {
+                for (let col = 0; col < 2; col++) {
+                    const answerBox = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                    const boxId = `answer-${row * 2 + col + 1}`;
+                    answerBox.setAttribute('data-box-id', boxId);
+                    
+                    // Create the box
+                    const box = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                    const x = startX + col * (boxWidth + gap);
+                    const y = startY + row * (boxHeight + gap);
+                    
+                    box.setAttribute('x', x);
+                    box.setAttribute('y', y);
+                    box.setAttribute('width', boxWidth);
+                    box.setAttribute('height', boxHeight);
+                    box.setAttribute('fill', 'white');
+                    box.setAttribute('stroke', '#ff4b4b');
+                    box.setAttribute('stroke-width', '2');
+                    box.setAttribute('rx', '10');
+                    box.setAttribute('data-votes', '0');
+
+                    // Add number label
+                    const number = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    number.setAttribute('x', x + 20);
+                    number.setAttribute('y', y + 30);
+                    number.setAttribute('fill', '#666');
+                    number.setAttribute('font-size', '20');
+                    number.textContent = (row * 2 + col + 1) + '.';
+
+                    // Add vote counter
+                    const voteCounter = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    voteCounter.setAttribute('class', 'vote-counter');
+                    voteCounter.setAttribute('x', x + boxWidth - 40);
+                    voteCounter.setAttribute('y', y + 30);
+                    voteCounter.setAttribute('fill', '#666');
+                    voteCounter.setAttribute('font-size', '20');
+                    voteCounter.setAttribute('text-anchor', 'end');
+                    voteCounter.textContent = '0';
+
+                    // Add "Write answer here" text
+                    const answerText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    answerText.setAttribute('x', x + 20);
+                    answerText.setAttribute('y', y + 80);
+                    answerText.setAttribute('fill', '#999');
+                    answerText.setAttribute('font-size', '20');
+                    answerText.setAttribute('data-placeholder', 'true');
+                    answerText.textContent = 'Write your answer here';
+                    quizPlaceholders.add(answerText);
+
+                    answerBox.appendChild(box);
+                    answerBox.appendChild(number);
+                    answerBox.appendChild(voteCounter);
+                    answerBox.appendChild(answerText);
+
+                    // Add click handlers for voting
+                    box.style.pointerEvents = 'all';
+                    
+                    // Left click/tap handler
+                    box.onclick = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (currentMode === 'select') {
+                            handleAnswerVote(boxId, box, false);
+                        }
+                    };
+
+                    // Right click/long press handler
+                    box.oncontextmenu = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (currentMode === 'select') {
+                            handleAnswerVote(boxId, box, true);
+                        }
+                        return false;
+                    };
+
+                    // Touch long press handler
+                    let touchTimer;
+                    box.ontouchstart = (e) => {
+                        touchTimer = setTimeout(() => {
+                            if (currentMode === 'select') {
+                                handleAnswerVote(boxId, box, true);
+                            }
+                        }, 500); // 500ms for long press
+                    };
+
+                    box.ontouchend = (e) => {
+                        clearTimeout(touchTimer);
+                    };
+
+                    box.ontouchmove = (e) => {
+                        clearTimeout(touchTimer);
+                    };
+
+                    boxBackgrounds.appendChild(answerBox);
+                }
+            }
+
+            // Create button container
+            const buttonGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            buttonGroup.setAttribute('transform', `translate(${startX}, ${startY + 2 * (boxHeight + gap) + 20})`);
+            buttonGroup.style.pointerEvents = 'all';
+
+            // Create NEXT button
+            const nextButton = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            nextButton.style.cursor = 'pointer';
+
+            const nextBox = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            nextBox.setAttribute('x', '0');
+            nextBox.setAttribute('y', '0');
+            nextBox.setAttribute('width', '100');
+            nextBox.setAttribute('height', '30');
+            nextBox.setAttribute('fill', 'none');
+            nextBox.setAttribute('stroke', '#ff4b4b');
+            nextBox.setAttribute('stroke-width', '2');
+            nextBox.setAttribute('rx', '5');
+
+            const nextText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            nextText.setAttribute('x', '50');
+            nextText.setAttribute('y', '20');
+            nextText.setAttribute('text-anchor', 'middle');
+            nextText.setAttribute('fill', '#ff4b4b');
+            nextText.setAttribute('font-size', '14');
+            nextText.setAttribute('font-weight', 'bold');
+            nextText.textContent = 'NEXT';
+
+            // Create FINISH button
+            const finishButton = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            finishButton.style.cursor = 'pointer';
+            finishButton.setAttribute('transform', 'translate(120, 0)');
+
+            const finishBox = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            finishBox.setAttribute('x', '0');
+            finishBox.setAttribute('y', '0');
+            finishBox.setAttribute('width', '100');
+            finishBox.setAttribute('height', '30');
+            finishBox.setAttribute('fill', 'none');
+            finishBox.setAttribute('stroke', '#4CAF50');
+            finishBox.setAttribute('stroke-width', '2');
+            finishBox.setAttribute('rx', '5');
+
+            const finishText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            finishText.setAttribute('x', '50');
+            finishText.setAttribute('y', '20');
+            finishText.setAttribute('text-anchor', 'middle');
+            finishText.setAttribute('fill', '#4CAF50');
+            finishText.setAttribute('font-size', '14');
+            finishText.setAttribute('font-weight', 'bold');
+            finishText.textContent = 'FINISH';
+
+            // Add hover effects and click handlers
+            nextButton.onmouseover = () => {
+                nextBox.setAttribute('fill', '#ff4b4b');
+                nextText.setAttribute('fill', 'white');
+            };
+            nextButton.onmouseout = () => {
+                nextBox.setAttribute('fill', 'none');
+                nextText.setAttribute('fill', '#ff4b4b');
+            };
+
+            finishButton.onmouseover = () => {
+                finishBox.setAttribute('fill', '#4CAF50');
+                finishText.setAttribute('fill', 'white');
+            };
+            finishButton.onmouseout = () => {
+                finishBox.setAttribute('fill', 'none');
+                finishText.setAttribute('fill', '#4CAF50');
+            };
+
+            nextButton.onclick = () => {
+                // Save current question state
+                const questionBox = document.getElementById('quizQuestionBox');
+                const answerBoxes = boxBackgrounds.querySelectorAll('g[data-box-id]');
+                
+                quizState.questions.push({
+                    question: currentQuestionPaths.get('question') || [], // Get question paths from Map
+                    answers: Array.from(answerBoxes).map(box => {
+                        const boxId = box.getAttribute('data-box-id');
+                        return currentAnswerPaths.get(boxId) || [];
+                    }),
+                    votes: Array.from(document.querySelectorAll('rect[data-votes]')).map(box => ({
+                        id: box.parentNode.getAttribute('data-box-id'),
+                        votes: parseInt(box.getAttribute('data-votes')) || 0
+                    })),
+                    correctAnswers: new Set()
+                });
+                
+                // Clear current question
+                boxGroup.remove();
+                currentQuizAnswers = null;
+                quizPlaceholders.clear();
+                
+                // Reset current paths
+                currentQuestionPaths = new Map();
+                currentAnswerPaths = new Map();
+                
+                // Create next question
+                quizState.currentQuestion++;
+                createQuiz();
+            };
+
+            finishButton.onclick = () => {
+                // Save final question state
+                const questionBox = document.getElementById('quizQuestionBox');
+                const answerBoxes = boxBackgrounds.querySelectorAll('g[data-box-id]');
+                
+                quizState.questions.push({
+                    question: currentQuestionPaths.get('question') || [], // Get question paths from Map
+                    answers: Array.from(answerBoxes).map(box => {
+                        const boxId = box.getAttribute('data-box-id');
+                        return currentAnswerPaths.get(boxId) || [];
+                    }),
+                    votes: Array.from(document.querySelectorAll('rect[data-votes]')).map(box => ({
+                        id: box.parentNode.getAttribute('data-box-id'),
+                        votes: parseInt(box.getAttribute('data-votes')) || 0
+                    })),
+                    correctAnswers: new Set()
+                });
+                
+                // Clear quiz
+                boxGroup.remove();
+                currentQuizAnswers = null;
+                quizPlaceholders.clear();
+                quizState.currentQuestion = -1;
+                
+                // Reset current paths
+                currentQuestionPaths = new Map();
+                currentAnswerPaths = new Map();
+                
+                // Show results
+                showQuizResults();
+            };
+
+            nextButton.appendChild(nextBox);
+            nextButton.appendChild(nextText);
+            finishButton.appendChild(finishBox);
+            finishButton.appendChild(finishText);
+            buttonGroup.appendChild(nextButton);
+            buttonGroup.appendChild(finishButton);
+
+            boxGroup.appendChild(boxBackgrounds);
+            boxGroup.appendChild(buttonGroup);
+            
+            // Insert the box group before the pathGroup so drawings appear on top
+            svg.insertBefore(boxGroup, pathGroup);
+        }
+
+        function handleAnswerVote(boxId, box, isRemoving = false) {
+            if (currentMode === 'select') {
+                const votes = box.getAttribute('data-votes') || 0;
+                let newVotes = parseInt(votes);
+                
+                if (isRemoving) {
+                    // Remove a vote on right click/long press
+                    newVotes = Math.max(0, newVotes - 1);
+                } else {
+                    // Add a vote on left click/normal tap
+                    newVotes = newVotes + 1;
+                }
+                
+                box.setAttribute('data-votes', newVotes);
+                
+                // Update vote counter display
+                const voteCounter = box.parentNode.querySelector('.vote-counter');
+                if (voteCounter) {
+                    voteCounter.textContent = newVotes;
+                }
+            }
+        }
+
+        function getWrittenText(element) {
+            const boxId = element.getAttribute('data-box-id');
+            if (boxId) {
+                // Return stored paths for answer boxes
+                return currentAnswerPaths.get(boxId) || [];
+            } else if (element.id === 'quizQuestionBox') {
+                // Return stored paths for question box
+                return currentQuestionPaths.get('question') || [];
+            }
+            return [];
+        }
+
+        function showQuizResults() {
+            // Create results overlay
+            const resultsOverlay = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            resultsOverlay.id = 'quizResults';
+
+            // Add semi-transparent background
+            const background = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            background.setAttribute('x', '0');
+            background.setAttribute('y', '0');
+            background.setAttribute('width', '2000');
+            background.setAttribute('height', '900');
+            background.setAttribute('fill', 'rgba(0, 0, 0, 0.8)');
+
+            // Create results container
+            const resultsBox = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            resultsBox.setAttribute('x', '400');
+            resultsBox.setAttribute('y', '100');
+            resultsBox.setAttribute('width', '1200');
+            resultsBox.setAttribute('height', '700');
+            resultsBox.setAttribute('fill', 'white');
+            resultsBox.setAttribute('rx', '15');
+
+            // Add title
+            const title = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            title.setAttribute('x', '1000');
+            title.setAttribute('y', '150');
+            title.setAttribute('text-anchor', 'middle');
+            title.setAttribute('fill', '#333');
+            title.setAttribute('font-size', '24');
+            title.setAttribute('font-weight', 'bold');
+            title.textContent = 'Quiz Results';
+
+            resultsOverlay.appendChild(background);
+            resultsOverlay.appendChild(resultsBox);
+            resultsOverlay.appendChild(title);
+
+            // Add results for each question
+            let yPos = 200;
+            quizState.questions.forEach((question, index) => {
+                const questionGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                questionGroup.setAttribute('transform', `translate(450, ${yPos})`);
+
+                // Add question text
+                const questionText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                questionText.setAttribute('x', '0');
+                questionText.setAttribute('y', '0');
+                questionText.setAttribute('fill', '#333');
+                questionText.setAttribute('font-size', '18');
+                questionText.setAttribute('font-weight', 'bold');
+                questionText.textContent = `Question ${index + 1}:`;
+                questionGroup.appendChild(questionText);
+
+                // Create question box
+                const questionBox = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                questionBox.setAttribute('x', '0');
+                questionBox.setAttribute('y', '20');
+                questionBox.setAttribute('width', '900');
+                questionBox.setAttribute('height', '80');
+                questionBox.setAttribute('fill', 'white');
+                questionBox.setAttribute('stroke', '#ff4b4b');
+                questionBox.setAttribute('stroke-width', '2');
+                questionBox.setAttribute('rx', '5');
+                questionGroup.appendChild(questionBox);
+
+                // Add the question drawing inside the red box
+                if (question.question && question.question.length > 0) {
+                    const questionPaths = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                    questionPaths.setAttribute('transform', 'translate(10, 15)'); // Adjusted Y position from 30 to 15
+                    
+                    question.question.forEach(pathData => {
+                        const newPath = pathData.path.cloneNode(true);
+                        // Adjusted scaling and positioning for better fit
+                        const scaleX = 880 / 1400;
+                        const scaleY = 50 / 100;
+                        const offsetX = (pathData.offsetX - 300) * scaleX;
+                        const offsetY = (pathData.offsetY - 50) * scaleY;
+                        const transform = `translate(${-offsetX + 10}, ${-offsetY + 5}) scale(${scaleX}, ${scaleY})`; // Added back scale
+                        newPath.setAttribute('transform', transform);
+                        questionPaths.appendChild(newPath);
+                    });
+                    
+                    questionGroup.appendChild(questionPaths);
+                }
+
+                // Add answer results
+                const answerRowGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                answerRowGroup.setAttribute('transform', 'translate(0, 120)');
+
+                // Show all answers including potential fifth one for debugging
+                const answers = question.answers; // Remove the slice to show all answers
+                answers.forEach((answer, i) => {
+                    // Skip if beyond 5 answers or if it's the first answer (index 0)
+                    if (i >= 5 || i === 0) return;
+                    
+                    const answerGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                    // Position answers horizontally with spacing
+                    answerGroup.setAttribute('transform', `translate(${(i-1) * 230}, 0)`);
+
+                    const answerId = `answer-${i + 1}`;
+                    const votes = question.votes.find(v => v.id === answerId)?.votes || 0;
+                    const isCorrect = question.correctAnswers?.has(answerId) || false;
+
+                    // Create answer box
+                    const answerBox = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                    answerBox.setAttribute('x', '0');
+                    answerBox.setAttribute('y', '0');
+                    answerBox.setAttribute('width', '210'); // Adjusted width to fit 4 boxes
+                    answerBox.setAttribute('height', '80');
+                    answerBox.setAttribute('fill', isCorrect ? '#4CAF50' : '#4A90E2');
+                    answerBox.setAttribute('opacity', '0.2');
+                    answerBox.setAttribute('rx', '5');
+                    answerGroup.appendChild(answerBox);
+
+                    // Add answer number
+                    const answerNumber = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    answerNumber.setAttribute('x', '20');
+                    answerNumber.setAttribute('y', '25');
+                    answerNumber.setAttribute('fill', '#333');
+                    answerNumber.setAttribute('font-size', '14');
+                    answerNumber.textContent = `${i}.`;
+                    answerGroup.appendChild(answerNumber);
+
+                    // Add the answer drawing
+                    if (answer && answer.length > 0) {
+                        const answerDrawing = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                        answerDrawing.setAttribute('transform', 'translate(50, 20)');
+                        
+                        answer.forEach(pathData => {
+                            const newPath = pathData.path.cloneNode(true);
+                            // Scale and position the path to fit nicely in the answer box
+                            const scaleX = 140 / 650;
+                            const scaleY = 40 / 150;
+                            const offsetX = (pathData.offsetX - 300) * scaleX;
+                            const offsetY = (pathData.offsetY - 200) * scaleY;
+                            const transform = `translate(${-offsetX}, ${-offsetY}) scale(${scaleX}, ${scaleY})`;
+                            newPath.setAttribute('transform', transform);
+                            answerDrawing.appendChild(newPath);
+                        });
+                        
+                        answerGroup.appendChild(answerDrawing);
+                    }
+
+                    // Add votes count
+                    const votesText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    votesText.setAttribute('x', '180');
+                    votesText.setAttribute('y', '70');
+                    votesText.setAttribute('fill', '#333');
+                    votesText.setAttribute('font-size', '12');
+                    votesText.setAttribute('text-anchor', 'end');
+                    votesText.textContent = `${votes} votes`;
+                    answerGroup.appendChild(votesText);
+
+                    // Add click handler to mark correct answer
+                    const clickArea = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                    clickArea.setAttribute('x', '0');
+                    clickArea.setAttribute('y', '0');
+                    clickArea.setAttribute('width', '210');
+                    clickArea.setAttribute('height', '80');
+                    clickArea.setAttribute('fill', 'transparent');
+                    clickArea.style.cursor = 'pointer';
+                    clickArea.onclick = () => {
+                        if (!question.correctAnswers) {
+                            question.correctAnswers = new Set();
+                        }
+                        if (question.correctAnswers.has(answerId)) {
+                            question.correctAnswers.delete(answerId);
+                            answerBox.setAttribute('fill', '#4A90E2');
+                        } else {
+                            question.correctAnswers.add(answerId);
+                            answerBox.setAttribute('fill', '#4CAF50');
+                        }
+                    };
+
+                    answerGroup.appendChild(clickArea);
+                    answerRowGroup.appendChild(answerGroup);
+                });
+
+                questionGroup.appendChild(answerRowGroup);
+
+                // Add total votes - moved below the answers
+                const totalVotes = question.votes.reduce((sum, v) => sum + v.votes, 0);
+                const summary = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                summary.setAttribute('x', '0');
+                summary.setAttribute('y', '240'); // Moved down below the answers
+                summary.setAttribute('fill', '#666');
+                summary.setAttribute('font-size', '14');
+                summary.textContent = `Total votes: ${totalVotes}`;
+                questionGroup.appendChild(summary);
+
+                resultsOverlay.appendChild(questionGroup);
+                yPos += 290; // Increased spacing between questions to accommodate the total votes text
+            });
+
+            // Add close button
+            const closeButton = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            closeButton.style.cursor = 'pointer';
+            closeButton.setAttribute('transform', 'translate(1500, 120)');
+
+            const closeBox = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            closeBox.setAttribute('x', '0');
+            closeBox.setAttribute('y', '0');
+            closeBox.setAttribute('width', '30');
+            closeBox.setAttribute('height', '30');
+            closeBox.setAttribute('fill', '#ff4b4b');
+            closeBox.setAttribute('rx', '5');
+
+            const closeX = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            closeX.setAttribute('x', '15');
+            closeX.setAttribute('y', '20');
+            closeX.setAttribute('text-anchor', 'middle');
+            closeX.setAttribute('fill', 'white');
+            closeX.setAttribute('font-size', '16');
+            closeX.textContent = '×';
+
+            closeButton.onclick = () => {
+                resultsOverlay.remove();
+            };
+
+            closeButton.appendChild(closeBox);
+            closeButton.appendChild(closeX);
+            resultsOverlay.appendChild(closeButton);
+
+            svg.appendChild(resultsOverlay);
         }
 
         // Initialize draw mode
