@@ -304,6 +304,90 @@
             stroke-linejoin: round;
         }
 
+        .postit-note {
+            cursor: move;
+        }
+
+        .postit-note rect {
+            transition: none;
+        }
+
+        .postit-header {
+            pointer-events: all;
+        }
+
+        .postit-content {
+            pointer-events: all;
+        }
+
+        .postit-drawing {
+            pointer-events: all;
+        }
+
+        .postit-group {
+            cursor: move;
+        }
+
+        .postit-group rect {
+            transition: fill 0.2s ease;
+        }
+
+        .postit-group:hover rect {
+            fill: rgba(255, 255, 255, 0.2);
+        }
+
+        .postit-group.collapsed .postit-note {
+            display: none;
+        }
+
+        .postit-group .toggle-button {
+            transition: transform 0.2s ease;
+        }
+
+        .postit-group .toggle-button:hover {
+            transform: scale(1.1);
+        }
+
+        .postit-group .toggle-button line {
+            transition: transform 0.2s ease;
+        }
+
+        .postit-group.collapsed .toggle-button line {
+            transform: rotate(90deg);
+        }
+
+        .emoji-picker {
+            position: absolute;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 10px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .emoji-picker button {
+            font-size: 20px;
+            padding: 5px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .emoji-picker button:hover {
+            transform: scale(1.2);
+        }
+
+        .color-picker {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
         .word-group {
             cursor: move;
             pointer-events: bounding-box;
@@ -390,9 +474,6 @@
                             <button onclick="setMode('eraser')" id="eraserMode">
                                 <i class="fas fa-eraser"></i> Eraser
                             </button>
-                            <button onclick="finishWord()" id="finishWord">
-                                <i class="fas fa-check"></i> Finish Word
-                            </button>
                         </div>
                     </div>
 
@@ -431,6 +512,12 @@
                             </button>
                             <button onclick="deletePath()" class="danger">
                                 <i class="fas fa-times"></i> Delete Selected
+                            </button>
+                            <button id="addPostItButton">
+                                <i class="fas fa-sticky-note"></i> Add Post-it
+                            </button>
+                            <button onclick="createGroup()">
+                                <i class="fas fa-object-group"></i> Group
                             </button>
                             <button onclick="createPoll()">
                                 <i class="fas fa-poll"></i> Create Poll
@@ -471,33 +558,34 @@
         let lastDrawingTime = 0;
         let eraserPath = null;
         let eraserPoints = [];
-        const ERASER_SIZE = 20;
-        const WORD_TIMEOUT = 1000; // 1 second timeout for word grouping
+        const ERASER_MULTIPLIER = 10;
+        const WORD_TIMEOUT = 1000;
         let currentPoll = null;
-        let pollOptions = new Map(); // Map to store poll options and their votes
-        let selectedElements = new Set(); // Track multiple selected elements
-        let isMultiSelect = false; // Track if multi-select is active
+        let postItNotes = new Map();
+        let postItGroups = new Map();
+        let isResizing = false;
+        let resizeHandle = null;
+        let resizeStart = { x: 0, y: 0 };
+        let resizeStartSize = { width: 0, height: 0 };
+        let selectedElements = new Set();
+        let isMultiSelect = false;
         let lastTouchTime = 0;
-        const DOUBLE_TAP_DELAY = 300; // Time in ms between taps to count as double tap
+        const DOUBLE_TAP_DELAY = 300;
         let touchStartTime = 0;
-        const LONG_PRESS_DURATION = 500; // Time in ms for long press
+        const LONG_PRESS_DURATION = 500;
         let currentQuizAnswers = null;
         let quizPlaceholders = new Set();
-        let currentQuestionPaths = new Map(); // Change from array to Map
+        let currentQuestionPaths = new Map();
         let currentAnswerPaths = new Map();
         let quizState = {
             questions: [],
             currentQuestion: -1,
-            currentAnswers: new Set() // Track current answers for each question
+            currentAnswers: new Set()
         };
 
         let viewBox = { x: 0, y: 0, width: 2000, height: 900 };
         let isPanning = false;
         let startPoint = { x: 0, y: 0 };
-        let currentScale = 1;
-        const MIN_SCALE = 0.1;
-        const MAX_SCALE = 10;
-        let lastViewBox = { ...viewBox };
         let panStartX = 0;
         let panStartY = 0;
 
@@ -559,35 +647,21 @@
             };
         }
 
-        function zoom(evt) {
-            evt.preventDefault();
-            
+        function getPostItMousePosition(evt, postIt) {
+            const rect = svg.getBoundingClientRect();
             const point = getEventPoint(evt);
-            const delta = evt.deltaY;
             
-            // Calculate zoom factor
-            const factor = delta > 0 ? 1.1 : 0.9;
+            // Get the post-it's transform
+            const transform = postIt.getAttribute('transform');
+            const translateMatch = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
+            const postItX = translateMatch ? parseFloat(translateMatch[1]) : 0;
+            const postItY = translateMatch ? parseFloat(translateMatch[2]) : 0;
             
-            // Calculate new scale
-            const newScale = currentScale * factor;
-            
-            // Check bounds
-            if (newScale < MIN_SCALE || newScale > MAX_SCALE) return;
-            
-            // Calculate zoom point in SVG coordinates
-            const svgPoint = {
-                x: viewBox.x + (point.x / svg.clientWidth) * viewBox.width,
-                y: viewBox.y + (point.y / svg.clientHeight) * viewBox.height
+            // Convert screen coordinates to SVG coordinates relative to the post-it
+            return {
+                x: (point.x / rect.width) * viewBox.width - postItX,
+                y: (point.y / rect.height) * viewBox.height - postItY
             };
-            
-            // Update viewBox
-            viewBox.width *= factor;
-            viewBox.height *= factor;
-            viewBox.x = svgPoint.x - (point.x / svg.clientWidth) * viewBox.width;
-            viewBox.y = svgPoint.y - (point.y / svg.clientHeight) * viewBox.height;
-            
-            currentScale = newScale;
-            updateViewBox();
         }
 
         // Update event listeners
@@ -705,9 +779,11 @@
             document.getElementById('moveMode').style.backgroundColor = mode === 'move' ? '#0056b3' : '#007bff';
             document.getElementById('eraserMode').style.backgroundColor = mode === 'eraser' ? '#0056b3' : '#007bff';
             
-            // Reset panning state when changing modes
-            isPanning = false;
-            svg.classList.remove('grabbing');
+            // Reset states when changing modes
+            isDrawing = false;
+            isDragging = false;
+            selectedElement = null;
+            pathData = [];
             
             // Update cursor style
             if (mode === 'move') {
@@ -716,18 +792,15 @@
             } else if (mode === 'draw') {
                 svg.classList.add('drawing');
                 svg.style.cursor = 'crosshair';
+            } else if (mode === 'select') {
+                svg.classList.remove('drawing');
+                svg.style.cursor = 'move';
+            } else if (mode === 'eraser') {
+                svg.classList.remove('drawing');
+                svg.style.cursor = 'none';
             } else {
                 svg.classList.remove('drawing');
                 svg.style.cursor = 'default';
-            }
-            
-            // Clear all selections when changing modes
-            clearSelections();
-            
-            if (mode === 'eraser') {
-                createEraserCursor();
-            } else {
-                removeEraserCursor();
             }
         }
 
@@ -823,7 +896,7 @@
             lastDrawingTime = 0;
         }
 
-        function handleMouseDown(evt, isMultiSelect = false) {
+        function handleMouseDown(evt) {
             if (currentMode === 'draw') {
                 const now = Date.now();
                 if (now - lastDrawingTime > WORD_TIMEOUT) {
@@ -837,8 +910,8 @@
                     const wordGroup = target.classList.contains('word-group') ? target : target.parentElement;
                     
                     if (currentMode === 'select') {
-                        if (evt.ctrlKey || evt.metaKey || isMultiSelect) {
-                            // Toggle selection with Ctrl/Cmd key or long press
+                        if (evt.ctrlKey || evt.metaKey) {
+                            // Toggle selection with Ctrl/Cmd key
                             if (selectedElements.has(wordGroup)) {
                                 selectedElements.delete(wordGroup);
                                 wordGroup.classList.remove('selected');
@@ -853,6 +926,12 @@
                             wordGroup.classList.add('selected');
                         }
                         selectedElement = wordGroup;
+                        isDragging = true;
+                        
+                        const bbox = wordGroup.getBBox();
+                        const mousePos = getMousePosition(evt);
+                        offset.x = mousePos.x - bbox.x;
+                        offset.y = mousePos.y - bbox.y;
                     } else if (currentMode === 'move') {
                         clearSelections();
                         selectedElements.add(wordGroup);
@@ -867,7 +946,7 @@
                     }
                 } else {
                     // Clicked outside any word
-                    if (!evt.ctrlKey && !evt.metaKey && !isMultiSelect) {
+                    if (!evt.ctrlKey && !evt.metaKey) {
                         clearSelections();
                     }
                 }
@@ -880,36 +959,73 @@
         }
 
         function handleMouseMove(evt) {
-            if (currentMode === 'draw' && isDrawing) {
-                draw(evt);
-            } else if (currentMode === 'move' && isDragging && selectedElement) {
+            if (currentMode === 'draw') {
+                // Check if we're drawing on a post-it
+                let drawingOnPostIt = false;
+                for (const [id, postItData] of postItNotes) {
+                    if (postItData.isDrawing && postItData.currentPath) {
+                        drawingOnPostIt = true;
+                        const pos = getPostItMousePosition(evt, postItData.element);
+                        pathData.push(pos);
+                        
+                        // Filter points to remove outliers and smooth the line
+                        const filteredPoints = filterPoints(pathData);
+                        
+                        // Create a smooth path using line segments
+                        let d = `M ${filteredPoints[0].x} ${filteredPoints[0].y}`;
+                        for (let i = 1; i < filteredPoints.length; i++) {
+                            const curr = filteredPoints[i];
+                            d += ` L ${curr.x} ${curr.y}`;
+                        }
+                        
+                        postItData.currentPath.setAttribute("d", d);
+                        break;
+                    }
+                }
+                
+                // If not drawing on a post-it, use the regular drawing logic
+                if (!drawingOnPostIt && isDrawing) {
+                    const pos = getMousePosition(evt);
+                    pathData.push(pos);
+                    
+                    // Filter points to remove outliers and smooth the line
+                    const filteredPoints = filterPoints(pathData);
+                    
+                    // Create a smooth path using line segments
+                    let d = `M ${filteredPoints[0].x} ${filteredPoints[0].y}`;
+                    for (let i = 1; i < filteredPoints.length; i++) {
+                        const curr = filteredPoints[i];
+                        d += ` L ${curr.x} ${curr.y}`;
+                    }
+                    
+                    if (currentPath) {
+                        currentPath.setAttribute("d", d);
+                    }
+                }
+            } else if (currentMode === 'select' && isDragging && selectedElement) {
+                evt.preventDefault();
+                evt.stopPropagation();
                 const pos = getMousePosition(evt);
                 const dx = pos.x - offset.x;
                 const dy = pos.y - offset.y;
                 selectedElement.setAttribute('transform', `translate(${dx}, ${dy})`);
-            } else if (currentMode === 'eraser') {
-                updateEraserCursor(evt);
-                if (isDrawing) {
-                    const pos = getMousePosition(evt);
-                    eraserPoints.push(pos);
-                    erase(evt);
-                }
             }
         }
 
         function handleMouseUp() {
             if (currentMode === 'draw') {
-                stopDrawing();
-                lastDrawingTime = Date.now();
+                isDrawing = false;
+                
+                // Reset post-it drawing states
+                for (const [id, postItData] of postItNotes) {
+                    postItData.isDrawing = false;
+                    postItData.currentPath = null;
+                }
+                
+                pathData = [];
             } else if (currentMode === 'select') {
                 isDragging = false;
-            } else if (currentMode === 'eraser') {
-                isDrawing = false;
-                if (eraserPath) {
-                    eraserPath.remove();
-                    eraserPath = null;
-                }
-                eraserPoints = [];
+                selectedElement = null;
             }
         }
 
@@ -1017,7 +1133,14 @@
                 d += ` L ${curr.x} ${curr.y}`;
             }
             
-            currentPath.setAttribute("d", d);
+            if (selectedElement && selectedElement.classList.contains('postit-note')) {
+                const postItData = postItNotes.get(selectedElement.id);
+                if (postItData && postItData.currentPath) {
+                    postItData.currentPath.setAttribute("d", d);
+                }
+            } else if (currentPath) {
+                currentPath.setAttribute("d", d);
+            }
         }
 
         function stopDrawing() {
@@ -1065,12 +1188,34 @@
         }
 
         function clearDrawing() {
+            // Clear all paths
             while (pathGroup.firstChild) {
                 pathGroup.removeChild(pathGroup.firstChild);
             }
+            
+            // Clear all post-it notes
+            for (const [id, postItData] of postItNotes) {
+                if (postItData.element && postItData.element.parentNode) {
+                    postItData.element.parentNode.removeChild(postItData.element);
+                }
+            }
+            postItNotes.clear();
+            
+            // Clear all post-it groups
+            for (const [id, groupData] of postItGroups) {
+                if (groupData.element && groupData.element.parentNode) {
+                    groupData.element.parentNode.removeChild(groupData.element);
+                }
+            }
+            postItGroups.clear();
+            
+            // Reset other states
             currentWordGroup = null;
             selectedElement = null;
             lastDrawingTime = 0;
+            isDrawing = false;
+            isDragging = false;
+            pathData = [];
         }
 
         function deletePath() {
@@ -1108,6 +1253,41 @@
                     path.setAttribute('stroke-width', width);
                 }
             }
+            // Update eraser cursor size if it exists
+            const eraserCursor = document.getElementById('eraserCursor');
+            if (eraserCursor) {
+                eraserCursor.setAttribute('r', currentStrokeWidth * ERASER_MULTIPLIER / 2);
+            }
+        }
+
+        function createEraserCursor() {
+            const eraserCursor = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            eraserCursor.id = 'eraserCursor';
+            eraserCursor.setAttribute('cx', '0');
+            eraserCursor.setAttribute('cy', '0');
+            eraserCursor.setAttribute('r', currentStrokeWidth * ERASER_MULTIPLIER / 2);
+            eraserCursor.setAttribute('fill', 'rgba(255, 255, 255, 0.3)');
+            eraserCursor.setAttribute('stroke', '#ff4b4b');
+            eraserCursor.setAttribute('stroke-width', '2');
+            eraserCursor.setAttribute('stroke-dasharray', '5,5');
+            pathGroup.appendChild(eraserCursor);
+        }
+
+        function removeEraserCursor() {
+            const eraserCursor = document.getElementById('eraserCursor');
+            if (eraserCursor) {
+                eraserCursor.remove();
+            }
+        }
+
+        function updateEraserCursor(evt) {
+            const eraserCursor = document.getElementById('eraserCursor');
+            if (eraserCursor) {
+                const pos = getMousePosition(evt);
+                eraserCursor.setAttribute('cx', pos.x);
+                eraserCursor.setAttribute('cy', pos.y);
+                eraserCursor.setAttribute('r', currentStrokeWidth * ERASER_MULTIPLIER / 2);
+            }
         }
 
         function startErasing(evt) {
@@ -1115,7 +1295,7 @@
             eraserPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
             eraserPath.setAttribute("class", "eraser-path");
             eraserPath.setAttribute("stroke", "rgba(255, 255, 255, 0.5)");
-            eraserPath.setAttribute("stroke-width", ERASER_SIZE);
+            eraserPath.setAttribute("stroke-width", currentStrokeWidth * ERASER_MULTIPLIER);
             eraserPath.setAttribute("fill", "none");
             eraserPath.setAttribute("stroke-linecap", "round");
             eraserPath.setAttribute("stroke-linejoin", "round");
@@ -1130,6 +1310,7 @@
             ).join(" ");
             
             eraserPath.setAttribute("d", d);
+            eraserPath.setAttribute("stroke-width", currentStrokeWidth * ERASER_MULTIPLIER);
             
             // Check for intersections with existing paths
             const paths = pathGroup.getElementsByClassName("path");
@@ -1157,7 +1338,7 @@
                             const dy = y - eraserPoint.y;
                             const distance = Math.sqrt(dx * dx + dy * dy);
                             
-                            if (distance < ERASER_SIZE/2) {
+                            if (distance < (currentStrokeWidth * ERASER_MULTIPLIER)/2) {
                                 shouldKeep = false;
                                 break;
                             }
@@ -2144,7 +2325,8 @@
                 // Show answers
                 const answers = question.answers;
                 const maxAnswersPerRow = 4;
-                const textYPositions = [82.5, 380]; // Y-positions for answer text only
+                const textYPositions = [70, 430]; // Y-positions for answer text only
+                const textXOffsets = [0, -25]; // X-offsets for answer text only (second row shifted left by 50)
                 
                 for (let row = 0; row < 2; row++) {
                     const rowGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -2159,62 +2341,62 @@
                         const answer = answers[actualAnswerIndex];
                         if (!answer) continue;
                     
-                    const answerGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                        const answerGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
                         answerGroup.setAttribute('transform', `translate(${col * 330}, 0)`);
 
                         const answerId = `answer-${actualAnswerIndex}`;
-                    const votes = question.votes.find(v => v.id === answerId)?.votes || 0;
-                    const isCorrect = question.correctAnswers?.has(answerId) || false;
+                        const votes = question.votes.find(v => v.id === answerId)?.votes || 0;
+                        const isCorrect = question.correctAnswers?.has(answerId) || false;
 
                         // Create answer box (keep original position)
-                    const answerBox = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-                    answerBox.setAttribute('x', '0');
-                    answerBox.setAttribute('y', '0');
+                        const answerBox = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                        answerBox.setAttribute('x', '0');
+                        answerBox.setAttribute('y', '0');
                         answerBox.setAttribute('width', '310');
                         answerBox.setAttribute('height', '100');
-                    answerBox.setAttribute('fill', isCorrect ? '#4CAF50' : '#4A90E2');
-                    answerBox.setAttribute('opacity', '0.2');
-                    answerBox.setAttribute('rx', '5');
-                    answerGroup.appendChild(answerBox);
+                        answerBox.setAttribute('fill', isCorrect ? '#4CAF50' : '#4A90E2');
+                        answerBox.setAttribute('opacity', '0.2');
+                        answerBox.setAttribute('rx', '5');
+                        answerGroup.appendChild(answerBox);
 
                         // Add answer number (keep with box)
-                    const answerNumber = document.createElementNS("http://www.w3.org/2000/svg", "text");
-                    answerNumber.setAttribute('x', '20');
-                    answerNumber.setAttribute('y', '25');
-                    answerNumber.setAttribute('fill', '#333');
-                    answerNumber.setAttribute('font-size', '14');
+                        const answerNumber = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                        answerNumber.setAttribute('x', '20');
+                        answerNumber.setAttribute('y', '25');
+                        answerNumber.setAttribute('fill', '#333');
+                        answerNumber.setAttribute('font-size', '14');
                         answerNumber.textContent = `${answerIndex + 1}.`;
-                    answerGroup.appendChild(answerNumber);
+                        answerGroup.appendChild(answerNumber);
 
                         // Add the answer drawing with adjusted position
-                    if (answer && answer.length > 0) {
-                        const answerDrawing = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                        if (answer && answer.length > 0) {
+                            const answerDrawing = document.createElementNS("http://www.w3.org/2000/svg", "g");
                             const yOffset = textYPositions[row] - (row * 120); // Adjust text position independently
-                            answerDrawing.setAttribute('transform', `translate(112.5, ${-yOffset})`);
+                            answerDrawing.setAttribute('transform', `translate(${112.5 + textXOffsets[row]}, ${-yOffset})`);
                         
-                        answer.forEach(pathData => {
-                            const newPath = pathData.path.cloneNode(true);
+                            answer.forEach(pathData => {
+                                const newPath = pathData.path.cloneNode(true);
                                 const scaleX = 250 / 650;
                                 const scaleY = 60 / 150;
                                 const offsetX = (pathData.offsetX - 100) * scaleX;
-                            const offsetY = (pathData.offsetY - 200) * scaleY;
+                                const offsetY = (pathData.offsetY - 200) * scaleY;
                                 const transform = `translate(${-offsetX - 125}, ${-offsetY - 15})`;
                                 newPath.setAttribute('transform', transform + ` scale(${scaleX}, ${scaleY})`);
-                            answerDrawing.appendChild(newPath);
-                        });
-                        
-                        answerGroup.appendChild(answerDrawing);
-                    }
+                                answerDrawing.appendChild(newPath);
+                            });
+                            
+                            answerGroup.appendChild(answerDrawing);
+                        }
 
                         // Add votes count (keep with box)
-                    const votesText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                        const votesText = document.createElementNS("http://www.w3.org/2000/svg", "text");
                         votesText.setAttribute('x', '280');
                         votesText.setAttribute('y', '85');
-                    votesText.setAttribute('fill', '#333');
-                    votesText.setAttribute('font-size', '12');
-                    votesText.setAttribute('text-anchor', 'end');
-                    votesText.textContent = `${votes} votes`;
-                    answerGroup.appendChild(votesText);
+                        votesText.setAttribute('fill', '#333');
+                        votesText.setAttribute('font-size', '12');
+                        votesText.setAttribute('text-anchor', 'end');
+                        votesText.textContent = `${votes} votes`;
+                        answerGroup.appendChild(votesText);
 
                         // Add click handler (keep with box)
                     const clickArea = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -2294,8 +2476,296 @@
             svg.appendChild(resultsOverlay);
         }
 
+        function createPostIt() {
+            console.log('Creating post-it...'); // Debug log
+            
+            // Create color picker dialog
+            const colorDialog = document.createElement('div');
+            colorDialog.id = 'colorPickerDialog';
+            colorDialog.style.position = 'fixed';
+            colorDialog.style.backgroundColor = 'white';
+            colorDialog.style.padding = '10px';
+            colorDialog.style.borderRadius = '8px';
+            colorDialog.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
+            colorDialog.style.zIndex = '1000';
+            colorDialog.style.display = 'grid';
+            colorDialog.style.gridTemplateColumns = 'repeat(3, 1fr)';
+            colorDialog.style.gap = '5px';
+            colorDialog.style.left = '50%';
+            colorDialog.style.top = '50%';
+            colorDialog.style.transform = 'translate(-50%, -50%)';
+            colorDialog.style.width = '150px';
+
+            const colors = [
+                { name: 'Yellow', value: '#ffff88' },
+                { name: 'Pink', value: '#ffb6c1' },
+                { name: 'Blue', value: '#add8e6' },
+                { name: 'Green', value: '#98fb98' },
+                { name: 'Purple', value: '#e6e6fa' },
+                { name: 'Orange', value: '#ffd8b1' }
+            ];
+
+            colors.forEach(color => {
+                const button = document.createElement('button');
+                button.style.width = '40px';
+                button.style.height = '40px';
+                button.style.padding = '0';
+                button.style.border = 'none';
+                button.style.borderRadius = '4px';
+                button.style.backgroundColor = color.value;
+                button.style.cursor = 'pointer';
+                button.style.transition = 'transform 0.2s';
+                button.title = color.name;
+                button.onmouseover = () => button.style.transform = 'scale(1.1)';
+                button.onmouseout = () => button.style.transform = 'scale(1)';
+                button.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    createPostItWithColor(color.value);
+                    colorDialog.remove();
+                };
+                colorDialog.appendChild(button);
+            });
+
+            // Remove any existing dialog
+            const existingDialog = document.getElementById('colorPickerDialog');
+            if (existingDialog) {
+                existingDialog.remove();
+            }
+
+            document.body.appendChild(colorDialog);
+
+            // Close dialog when clicking outside
+            const closeOnClickOutside = (e) => {
+                if (!colorDialog.contains(e.target)) {
+                    colorDialog.remove();
+                    document.removeEventListener('click', closeOnClickOutside);
+                }
+            };
+            document.addEventListener('click', closeOnClickOutside);
+        }
+
+        function createPostItWithColor(color) {
+            const postIt = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            const id = 'postit-' + Date.now();
+            postIt.setAttribute('id', id);
+            postIt.setAttribute('class', 'postit-note');
+            postIt.setAttribute('transform', 'translate(100, 100)');
+            
+            // Create post-it background
+            const background = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            background.setAttribute('width', '200');
+            background.setAttribute('height', '200');
+            background.setAttribute('fill', color);
+            background.setAttribute('stroke', '#000000');
+            background.setAttribute('stroke-width', '1');
+            background.setAttribute('rx', '5');
+            background.setAttribute('ry', '5');
+            background.style.cursor = 'move';
+            
+            // Create content area
+            const content = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            content.setAttribute('class', 'postit-content');
+            
+            // Create drawing area
+            const drawingArea = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            drawingArea.setAttribute('x', '5');
+            drawingArea.setAttribute('y', '5');
+            drawingArea.setAttribute('width', '190');
+            drawingArea.setAttribute('height', '190');
+            drawingArea.setAttribute('fill', 'transparent');
+            drawingArea.setAttribute('stroke', 'none');
+            
+            content.appendChild(drawingArea);
+            
+            postIt.appendChild(background);
+            postIt.appendChild(content);
+            
+            // Store post-it note
+            postItNotes.set(id, {
+                element: postIt,
+                content: content,
+                background: background,
+                drawingArea: drawingArea,
+                paths: new Map(),
+                currentPath: null,
+                isDrawing: false,
+                color: color
+            });
+            
+            // Add event listeners to the entire post-it group
+            postIt.addEventListener('mousedown', (e) => {
+                if (currentMode === 'select') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    isDragging = true;
+                    selectedElement = postIt;
+                    
+                    const transform = postIt.getAttribute('transform');
+                    const translateMatch = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
+                    const currentX = translateMatch ? parseFloat(translateMatch[1]) : 0;
+                    const currentY = translateMatch ? parseFloat(translateMatch[2]) : 0;
+                    
+                    const mousePos = getMousePosition(e);
+                    offset.x = mousePos.x - currentX;
+                    offset.y = mousePos.y - currentY;
+                }
+            });
+            
+            drawingArea.addEventListener('mousedown', (e) => {
+                if (currentMode === 'draw') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const postItData = postItNotes.get(id);
+                    if (!postItData) return;
+                    
+                    postItData.isDrawing = true;
+                    const pos = getPostItMousePosition(e, postIt);
+                    
+                    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    path.setAttribute('class', 'path');
+                    path.setAttribute('stroke', currentStrokeColor);
+                    path.setAttribute('stroke-width', currentStrokeWidth);
+                    path.setAttribute('d', `M ${pos.x} ${pos.y}`);
+                    path.setAttribute('stroke-linecap', 'round');
+                    path.setAttribute('stroke-linejoin', 'round');
+                    
+                    postItData.currentPath = path;
+                    postItData.paths.set(Date.now(), path);
+                    postItData.content.appendChild(path);
+                    
+                    // Store initial position for drawing
+                    pathData = [pos];
+                }
+            });
+            
+            svg.appendChild(postIt);
+        }
+
+        function createGroup() {
+            if (selectedElements.size < 2) {
+                alert("Please select at least two post-it notes to create a group");
+                return;
+            }
+            
+            const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            const id = 'group-' + Date.now();
+            group.setAttribute('id', id);
+            group.setAttribute('class', 'postit-group');
+            
+            // Create group background
+            const background = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            background.setAttribute('fill', 'rgba(255, 255, 255, 0.1)');
+            background.setAttribute('stroke', '#000000');
+            background.setAttribute('stroke-width', '2');
+            background.setAttribute('stroke-dasharray', '5,5');
+            
+            // Add selected post-its to group
+            selectedElements.forEach(postIt => {
+                if (postIt.classList.contains('postit-note')) {
+                    const clone = postIt.cloneNode(true);
+                    group.appendChild(clone);
+                    postIt.remove();
+                }
+            });
+            
+            // Update background size
+            const bbox = group.getBBox();
+            background.setAttribute('x', bbox.x - 10);
+            background.setAttribute('y', bbox.y - 10);
+            background.setAttribute('width', bbox.width + 20);
+            background.setAttribute('height', bbox.height + 20);
+            background.setAttribute('rx', '10');
+            background.setAttribute('ry', '10');
+            
+            group.insertBefore(background, group.firstChild);
+            
+            // Add collapse/expand button
+            const toggleButton = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            toggleButton.setAttribute('cx', bbox.x + bbox.width + 5);
+            toggleButton.setAttribute('cy', bbox.y - 5);
+            toggleButton.setAttribute('r', '10');
+            toggleButton.setAttribute('fill', '#4A90E2');
+            toggleButton.setAttribute('stroke', '#000000');
+            toggleButton.setAttribute('stroke-width', '1');
+            toggleButton.style.cursor = 'pointer';
+            
+            const minus = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            minus.setAttribute('x1', bbox.x + bbox.width);
+            minus.setAttribute('y1', bbox.y - 5);
+            minus.setAttribute('x2', bbox.x + bbox.width + 10);
+            minus.setAttribute('y2', bbox.y - 5);
+            minus.setAttribute('stroke', 'white');
+            minus.setAttribute('stroke-width', '2');
+            
+            toggleButton.appendChild(minus);
+            group.appendChild(toggleButton);
+            
+            // Store group
+            postItGroups.set(id, {
+                element: group,
+                isCollapsed: false,
+                background: background,
+                toggleButton: toggleButton
+            });
+            
+            // Add event listeners
+            background.addEventListener('mousedown', (e) => startDraggingGroup(e, group));
+            toggleButton.addEventListener('click', () => toggleGroup(group));
+            
+            svg.appendChild(group);
+        }
+
+        function startDraggingGroup(e, group) {
+            if (currentMode !== 'select') return;
+            
+            e.preventDefault();
+            isDragging = true;
+            selectedElement = group;
+            
+            const bbox = group.getBBox();
+            const mousePos = getMousePosition(e);
+            offset.x = mousePos.x - bbox.x;
+            offset.y = mousePos.y - bbox.y;
+        }
+
+        function toggleGroup(group) {
+            const groupData = postItGroups.get(group.id);
+            if (!groupData) return;
+            
+            groupData.isCollapsed = !groupData.isCollapsed;
+            
+            // Toggle visibility of post-its
+            const postIts = group.querySelectorAll('.postit-note');
+            postIts.forEach(postIt => {
+                postIt.style.display = groupData.isCollapsed ? 'none' : 'block';
+            });
+            
+            // Update toggle button
+            const toggleButton = groupData.toggleButton;
+            toggleButton.querySelector('line').setAttribute('y2', groupData.isCollapsed ? bbox.y - 5 : bbox.y - 5);
+            if (groupData.isCollapsed) {
+                toggleButton.querySelector('line').setAttribute('y2', bbox.y - 5);
+                toggleButton.querySelector('line').setAttribute('x2', bbox.x + bbox.width + 10);
+            } else {
+                toggleButton.querySelector('line').setAttribute('y2', bbox.y - 5);
+                toggleButton.querySelector('line').setAttribute('x2', bbox.x + bbox.width + 10);
+            }
+        }
+
         // Initialize draw mode
         setMode('draw');
+
+        // Add event listener for the Add Post-it button
+        document.getElementById('addPostItButton').addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            createPostIt();
+        });
+
+        // Remove zoom event listener
+        svg.removeEventListener('wheel', zoom);
     </script>
 </body>
 </html> 
