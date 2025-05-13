@@ -304,6 +304,25 @@
             stroke-linejoin: round;
         }
 
+        .lasso-path {
+            fill: none;
+            stroke: #4A90E2;
+            stroke-width: 2;
+            stroke-dasharray: 5,5;
+            fill: rgba(74, 144, 226, 0.1);
+        }
+
+        .eraser-path {
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            pointer-events: none;
+        }
+
+        #eraserCursor {
+            pointer-events: none;
+        }
+
         .postit-note {
             cursor: move;
         }
@@ -473,6 +492,9 @@
                             </button>
                             <button onclick="setMode('eraser')" id="eraserMode">
                                 <i class="fas fa-eraser"></i> Eraser
+                            </button>
+                            <button onclick="setMode('lasso')" id="lassoMode">
+                                <i class="fas fa-magic"></i> Lasso
                             </button>
                         </div>
                     </div>
@@ -778,6 +800,7 @@
             document.getElementById('selectMode').style.backgroundColor = mode === 'select' ? '#0056b3' : '#007bff';
             document.getElementById('moveMode').style.backgroundColor = mode === 'move' ? '#0056b3' : '#007bff';
             document.getElementById('eraserMode').style.backgroundColor = mode === 'eraser' ? '#0056b3' : '#007bff';
+            document.getElementById('lassoMode').style.backgroundColor = mode === 'lasso' ? '#0056b3' : '#007bff';
             
             // Reset states when changing modes
             isDrawing = false;
@@ -798,6 +821,10 @@
             } else if (mode === 'eraser') {
                 svg.classList.remove('drawing');
                 svg.style.cursor = 'none';
+                createEraserCursor();
+            } else if (mode === 'lasso') {
+                svg.classList.remove('drawing');
+                svg.style.cursor = 'crosshair';
             } else {
                 svg.classList.remove('drawing');
                 svg.style.cursor = 'default';
@@ -904,46 +931,29 @@
                     pathGroup.appendChild(currentWordGroup);
                 }
                 startDrawing(evt);
-            } else if (currentMode === 'select' || currentMode === 'move') {
-                const target = evt.target.closest('.word-group') || evt.target;
-                if (target.classList.contains('word-group') || target.classList.contains('path')) {
-                    const wordGroup = target.classList.contains('word-group') ? target : target.parentElement;
-                    
-                    if (currentMode === 'select') {
-                        if (evt.ctrlKey || evt.metaKey) {
-                            // Toggle selection with Ctrl/Cmd key
-                            if (selectedElements.has(wordGroup)) {
-                                selectedElements.delete(wordGroup);
-                                wordGroup.classList.remove('selected');
-                            } else {
-                                selectedElements.add(wordGroup);
-                                wordGroup.classList.add('selected');
-                            }
-                        } else {
-                            // Single selection
-                            clearSelections();
-                            selectedElements.add(wordGroup);
-                            wordGroup.classList.add('selected');
-                        }
-                        selectedElement = wordGroup;
-                        isDragging = true;
-                        
-                        const bbox = wordGroup.getBBox();
-                        const mousePos = getMousePosition(evt);
-                        offset.x = mousePos.x - bbox.x;
-                        offset.y = mousePos.y - bbox.y;
-                    } else if (currentMode === 'move') {
+            } else if (currentMode === 'select') {
+                const wordGroup = evt.target.closest('g');
+                if (wordGroup && wordGroup.parentNode === pathGroup) {
+                    // Only clear selections if clicking outside any selected elements and not holding ctrl/meta
+                    if (!evt.ctrlKey && !evt.metaKey && !selectedElements.has(wordGroup)) {
                         clearSelections();
+                    }
+                    
+                    // Toggle selection of the clicked element
+                    if (selectedElements.has(wordGroup)) {
+                        if (evt.ctrlKey || evt.metaKey) {
+                            selectedElements.delete(wordGroup);
+                            wordGroup.classList.remove('selected');
+                        }
+                    } else {
                         selectedElements.add(wordGroup);
                         wordGroup.classList.add('selected');
-                        selectedElement = wordGroup;
-                        isDragging = true;
-                        
-                        const bbox = wordGroup.getBBox();
-                        const mousePos = getMousePosition(evt);
-                        offset.x = mousePos.x - bbox.x;
-                        offset.y = mousePos.y - bbox.y;
                     }
+                    
+                    isDragging = true;
+                    const mousePos = getMousePosition(evt);
+                    offset.x = mousePos.x;
+                    offset.y = mousePos.y;
                 } else {
                     // Clicked outside any word
                     if (!evt.ctrlKey && !evt.metaKey) {
@@ -955,6 +965,13 @@
                 const pos = getMousePosition(evt);
                 eraserPoints = [pos];
                 startErasing(evt);
+                createEraserCursor();
+                updateEraserCursor(evt);
+            } else if (currentMode === 'lasso') {
+                isDrawing = true;
+                const pos = getMousePosition(evt);
+                pathData = [pos];
+                startLasso(evt);
             }
         }
 
@@ -1002,13 +1019,69 @@
                         currentPath.setAttribute("d", d);
                     }
                 }
-            } else if (currentMode === 'select' && isDragging && selectedElement) {
-                evt.preventDefault();
-                evt.stopPropagation();
-                const pos = getMousePosition(evt);
-                const dx = pos.x - offset.x;
-                const dy = pos.y - offset.y;
-                selectedElement.setAttribute('transform', `translate(${dx}, ${dy})`);
+            } else if (currentMode === 'select') {
+                if (isDragging) {
+                    evt.preventDefault();
+                    evt.stopPropagation();
+                    const pos = getMousePosition(evt);
+                    
+                    // Move all selected elements
+                    selectedElements.forEach(element => {
+                        if (element.classList.contains('postit-note')) {
+                            const postItData = postItNotes.get(element.id);
+                            if (postItData && !postItData.isResizing) {
+                                const transform = element.getAttribute('transform') || 'translate(0,0)';
+                                const translateMatch = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
+                                const currentX = translateMatch ? parseFloat(translateMatch[1]) : 0;
+                                const currentY = translateMatch ? parseFloat(translateMatch[2]) : 0;
+                                
+                                const newX = currentX + (pos.x - offset.x);
+                                const newY = currentY + (pos.y - offset.y);
+                                
+                                element.setAttribute('transform', `translate(${newX}, ${newY})`);
+                            }
+                        } else {
+                            const transform = element.getAttribute('transform') || 'translate(0,0)';
+                            const translateMatch = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
+                            const currentX = translateMatch ? parseFloat(translateMatch[1]) : 0;
+                            const currentY = translateMatch ? parseFloat(translateMatch[2]) : 0;
+                            
+                            const newX = currentX + (pos.x - offset.x);
+                            const newY = currentY + (pos.y - offset.y);
+                            
+                            element.setAttribute('transform', `translate(${newX}, ${newY})`);
+                        }
+                    });
+                    
+                    offset.x = pos.x;
+                    offset.y = pos.y;
+                }
+                
+                // Handle resizing
+                selectedElements.forEach(element => {
+                    const postItData = postItNotes.get(element.id);
+                    if (postItData && postItData.isResizing) {
+                        const pos = getMousePosition(evt);
+                        const dx = pos.x - postItData.resizeStart.x;
+                        const dy = pos.y - postItData.resizeStart.y;
+                        
+                        // Calculate new size
+                        const newWidth = Math.max(100, postItData.originalSize.width + dx);
+                        const newHeight = Math.max(100, postItData.originalSize.height + dy);
+                        
+                        // Update background size
+                        postItData.background.setAttribute('width', newWidth);
+                        postItData.background.setAttribute('height', newHeight);
+                        
+                        // Update drawing area size
+                        postItData.drawingArea.setAttribute('width', newWidth - 10);
+                        postItData.drawingArea.setAttribute('height', newHeight - 10);
+                        
+                        // Update resize handle position
+                        postItData.resizeHandle.setAttribute('cx', newWidth);
+                        postItData.resizeHandle.setAttribute('cy', newHeight);
+                    }
+                });
             }
         }
 
@@ -1025,7 +1098,27 @@
                 pathData = [];
             } else if (currentMode === 'select') {
                 isDragging = false;
-                selectedElement = null;
+                
+                // Reset resizing state
+                for (const [id, postItData] of postItNotes) {
+                    postItData.isResizing = false;
+                }
+            } else if (currentMode === 'eraser') {
+                isDrawing = false;
+                eraserPoints = [];
+                if (eraserPath) {
+                    eraserPath.remove();
+                    eraserPath = null;
+                }
+                removeEraserCursor();
+            } else if (currentMode === 'lasso') {
+                isDrawing = false;
+                if (lassoPath) {
+                    selectElementsInLasso();
+                    lassoPath.remove();
+                    lassoPath = null;
+                }
+                pathData = [];
             }
         }
 
@@ -1219,10 +1312,15 @@
         }
 
         function deletePath() {
-            if (selectedElement && selectedElement.parentNode) {
-                selectedElement.parentNode.removeChild(selectedElement);
-                selectedElement = null;
-            }
+            // Delete all selected elements
+            selectedElements.forEach(element => {
+                if (element && element.parentNode) {
+                    element.parentNode.removeChild(element);
+                }
+            });
+            // Clear selections after deletion
+            selectedElements.clear();
+            selectedElement = null;
         }
 
         function updateStrokeColor(color, square = null) {
@@ -2204,42 +2302,53 @@
             const resultsOverlay = document.createElementNS("http://www.w3.org/2000/svg", "g");
             resultsOverlay.id = 'quizResults';
 
-            // Calculate required height based on number of questions
-            const questionSpacing = 480; // Space needed per question
-            const baseHeight = 150; // Base height for title and padding
-            const totalHeight = baseHeight + (quizState.questions.length * questionSpacing);
+            // Get SVG dimensions
+            const svgWidth = svg.viewBox.baseVal.width;
+            const svgHeight = svg.viewBox.baseVal.height;
 
-            // Add semi-transparent background that scales with content
+            // Calculate margins and padding
+            const margin = Math.min(svgWidth * 0.1, 100); // 10% of width, max 100px
+            const padding = Math.min(svgWidth * 0.05, 50); // 5% of width, max 50px
+            const contentWidth = svgWidth - (2 * margin);
+
+            // Calculate spacing between questions
+            const questionSpacing = Math.min(svgHeight * 0.5, 480); // 50% of height, max 480px
+
+            // Calculate total height needed for all questions
+            const totalHeight = margin + (quizState.questions.length * questionSpacing) + margin;
+
+            // Add semi-transparent background for the entire viewport
             const background = document.createElementNS("http://www.w3.org/2000/svg", "rect");
             background.setAttribute('x', '0');
             background.setAttribute('y', '0');
-            background.setAttribute('width', '2000');
-            background.setAttribute('height', Math.max(900, totalHeight + 100));
+            background.setAttribute('width', svgWidth);
+            background.setAttribute('height', Math.max(svgHeight, totalHeight));
             background.setAttribute('fill', 'rgba(0, 0, 0, 0.8)');
 
-            // Create results container with dynamic height
-            const resultsBox = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-            resultsBox.setAttribute('x', '300');
-            resultsBox.setAttribute('y', '50');
-            resultsBox.setAttribute('width', '1400');
-            resultsBox.setAttribute('height', totalHeight);
-            resultsBox.setAttribute('fill', 'white');
-            resultsBox.setAttribute('rx', '15');
+            // Add white background for the content area
+            const contentBackground = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            contentBackground.setAttribute('x', margin);
+            contentBackground.setAttribute('y', margin);
+            contentBackground.setAttribute('width', contentWidth);
+            contentBackground.setAttribute('height', totalHeight - (2 * margin));
+            contentBackground.setAttribute('fill', 'white');
+            contentBackground.setAttribute('rx', '15');
+            contentBackground.setAttribute('ry', '15');
 
             // Add title
             const title = document.createElementNS("http://www.w3.org/2000/svg", "text");
-            title.setAttribute('x', '1000');
-            title.setAttribute('y', '100');
+            title.setAttribute('x', svgWidth / 2);
+            title.setAttribute('y', margin + padding);
             title.setAttribute('text-anchor', 'middle');
             title.setAttribute('fill', '#333');
-            title.setAttribute('font-size', '24');
+            title.setAttribute('font-size', Math.min(svgWidth * 0.02, 24));
             title.setAttribute('font-weight', 'bold');
             title.textContent = 'Quiz Results';
 
-            // Add close button - moved to top right corner
+            // Add close button
             const closeButton = document.createElementNS("http://www.w3.org/2000/svg", "g");
             closeButton.style.cursor = 'pointer';
-            closeButton.setAttribute('transform', 'translate(1640, 65)'); // Positioned relative to new box position
+            closeButton.setAttribute('transform', `translate(${margin + contentWidth - 35}, ${margin + 5})`);
 
             const closeBox = document.createElementNS("http://www.w3.org/2000/svg", "rect");
             closeBox.setAttribute('x', '0');
@@ -2267,32 +2376,32 @@
             resultsOverlay.appendChild(closeButton);
 
             resultsOverlay.appendChild(background);
-            resultsOverlay.appendChild(resultsBox);
+            resultsOverlay.appendChild(contentBackground);
             resultsOverlay.appendChild(title);
 
             // Add results for each question
-            let yPos = 120;
+            let yPos = margin + padding * 2;
 
             quizState.questions.forEach((question, index) => {
                 const questionGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-                questionGroup.setAttribute('transform', `translate(350, ${yPos})`);
+                questionGroup.setAttribute('transform', `translate(${margin + padding}, ${yPos})`);
 
                 // Add question text
                 const questionText = document.createElementNS("http://www.w3.org/2000/svg", "text");
                 questionText.setAttribute('x', '0');
                 questionText.setAttribute('y', '0');
                 questionText.setAttribute('fill', '#333');
-                questionText.setAttribute('font-size', '18');
+                questionText.setAttribute('font-size', Math.min(svgWidth * 0.015, 18));
                 questionText.setAttribute('font-weight', 'bold');
                 questionText.textContent = `Question ${index + 1}:`;
                 questionGroup.appendChild(questionText);
 
-                // Create question box
+                // Create question box with responsive width
                 const questionBox = document.createElementNS("http://www.w3.org/2000/svg", "rect");
                 questionBox.setAttribute('x', '0');
                 questionBox.setAttribute('y', '15');
-                questionBox.setAttribute('width', '1300');
-                questionBox.setAttribute('height', '80');
+                questionBox.setAttribute('width', contentWidth - (2 * padding));
+                questionBox.setAttribute('height', Math.min(svgHeight * 0.1, 80));
                 questionBox.setAttribute('fill', 'white');
                 questionBox.setAttribute('stroke', '#ff4b4b');
                 questionBox.setAttribute('stroke-width', '2');
@@ -2301,20 +2410,41 @@
 
                 // Add the question drawing inside the red box
                 if (question.question && question.question.length > 0) {
+                    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                    question.question.forEach(pathData => {
+                        const d = pathData.path.getAttribute('d');
+                        const matches = d.match(/[-+]?[0-9]*\.?[0-9]+/g);
+                        if (matches) {
+                            for (let i = 0; i < matches.length; i += 2) {
+                                const x = parseFloat(matches[i]);
+                                const y = parseFloat(matches[i + 1]);
+                                if (x < minX) minX = x;
+                                if (y < minY) minY = y;
+                                if (x > maxX) maxX = x;
+                                if (y > maxY) maxY = y;
+                            }
+                        }
+                    });
+                    if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) {
+                        minX = 0; minY = 0; maxX = 1; maxY = 1;
+                    }
+                    const drawingWidth = maxX - minX;
+                    const drawingHeight = maxY - minY;
+                    const targetWidth = contentWidth - (2 * padding);
+                    const targetHeight = Math.min(svgHeight * 0.1, 80);
+                    const margin = 10;
+                    const scale = Math.min(
+                        (targetWidth - 2 * margin) / drawingWidth,
+                        (targetHeight - 2 * margin) / drawingHeight
+                    );
+                    const offsetX = (targetWidth - drawingWidth * scale) / 2;
+                    const offsetY = (targetHeight - drawingHeight * scale) / 2;
                     const questionDrawing = document.createElementNS("http://www.w3.org/2000/svg", "g");
-                    questionDrawing.setAttribute('transform', 'translate(75, 10)');
-                    
+                    questionDrawing.setAttribute('transform', `translate(${offsetX},${15 + offsetY}) scale(${scale}) translate(${-minX},${-minY})`);
                     question.question.forEach(pathData => {
                         const newPath = pathData.path.cloneNode(true);
-                        const scaleX = 1280 / 1400;
-                        const scaleY = 50 / 100;
-                        const offsetX = (pathData.offsetX - 100) * scaleX;
-                        const offsetY = (pathData.offsetY - 50) * scaleY;
-                        const transform = `translate(${-offsetX - 165}, ${-offsetY})`;
-                        newPath.setAttribute('transform', transform + ` scale(${scaleX}, ${scaleY})`);
                         questionDrawing.appendChild(newPath);
                     });
-                    
                     questionGroup.appendChild(questionDrawing);
                 }
 
@@ -2322,19 +2452,20 @@
                 const answerRowGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
                 answerRowGroup.setAttribute('transform', 'translate(0, 110)');
 
+                // Calculate answer box dimensions
+                const answerBoxWidth = (contentWidth - (2 * padding) - (3 * 20)) / 4;
+                const answerBoxHeight = Math.min(svgHeight * 0.15, 100);
+
                 // Show answers
                 const answers = question.answers;
                 const maxAnswersPerRow = 4;
-                const textYPositions = [70, 430]; // Y-positions for answer text only
-                const textXOffsets = [0, -25]; // X-offsets for answer text only (second row shifted left by 50)
                 
                 for (let row = 0; row < 2; row++) {
                     const rowGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-                    rowGroup.setAttribute('transform', `translate(0, ${row * 120})`); // Keep original box positioning
+                    rowGroup.setAttribute('transform', `translate(0, ${row * (answerBoxHeight + 20)})`);
                     
                     for (let col = 0; col < maxAnswersPerRow; col++) {
                         const answerIndex = row * maxAnswersPerRow + col;
-                        // Skip first answer and adjust index for the rest
                         const actualAnswerIndex = answerIndex + 1;
                         if (actualAnswerIndex >= answers.length) continue;
                         
@@ -2342,85 +2473,105 @@
                         if (!answer) continue;
                     
                         const answerGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-                        answerGroup.setAttribute('transform', `translate(${col * 330}, 0)`);
+                        answerGroup.setAttribute('transform', `translate(${col * (answerBoxWidth + 20)}, 0)`);
 
                         const answerId = `answer-${actualAnswerIndex}`;
                         const votes = question.votes.find(v => v.id === answerId)?.votes || 0;
                         const isCorrect = question.correctAnswers?.has(answerId) || false;
 
-                        // Create answer box (keep original position)
+                        // Create answer box
                         const answerBox = document.createElementNS("http://www.w3.org/2000/svg", "rect");
                         answerBox.setAttribute('x', '0');
                         answerBox.setAttribute('y', '0');
-                        answerBox.setAttribute('width', '310');
-                        answerBox.setAttribute('height', '100');
+                        answerBox.setAttribute('width', answerBoxWidth);
+                        answerBox.setAttribute('height', answerBoxHeight);
                         answerBox.setAttribute('fill', isCorrect ? '#4CAF50' : '#4A90E2');
                         answerBox.setAttribute('opacity', '0.2');
                         answerBox.setAttribute('rx', '5');
                         answerGroup.appendChild(answerBox);
 
-                        // Add answer number (keep with box)
+                        // Add answer number
                         const answerNumber = document.createElementNS("http://www.w3.org/2000/svg", "text");
-                        answerNumber.setAttribute('x', '20');
+                        answerNumber.setAttribute('x', '10');
                         answerNumber.setAttribute('y', '25');
                         answerNumber.setAttribute('fill', '#333');
-                        answerNumber.setAttribute('font-size', '14');
+                        answerNumber.setAttribute('font-size', Math.min(svgWidth * 0.01, 14));
                         answerNumber.textContent = `${answerIndex + 1}.`;
                         answerGroup.appendChild(answerNumber);
 
-                        // Add the answer drawing with adjusted position
+                        // Add the answer drawing
                         if (answer && answer.length > 0) {
+                            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                            answer.forEach(pathData => {
+                                const d = pathData.path.getAttribute('d');
+                                const matches = d.match(/[-+]?[0-9]*\.?[0-9]+/g);
+                                if (matches) {
+                                    for (let i = 0; i < matches.length; i += 2) {
+                                        const x = parseFloat(matches[i]);
+                                        const y = parseFloat(matches[i + 1]);
+                                        if (x < minX) minX = x;
+                                        if (y < minY) minY = y;
+                                        if (x > maxX) maxX = x;
+                                        if (y > maxY) maxY = y;
+                                    }
+                                }
+                            });
+                            if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) {
+                                minX = 0; minY = 0; maxX = 1; maxY = 1;
+                            }
+                            const drawingWidth = maxX - minX;
+                            const drawingHeight = maxY - minY;
+                            const targetWidth = answerBoxWidth;
+                            const targetHeight = answerBoxHeight;
+                            const margin = 10;
+                            const scale = Math.min(
+                                (targetWidth - 2 * margin) / drawingWidth,
+                                (targetHeight - 2 * margin) / drawingHeight
+                            );
+                            const offsetX = (targetWidth - drawingWidth * scale) / 2;
+                            const offsetY = (targetHeight - drawingHeight * scale) / 2;
                             const answerDrawing = document.createElementNS("http://www.w3.org/2000/svg", "g");
-                            const yOffset = textYPositions[row] - (row * 120); // Adjust text position independently
-                            answerDrawing.setAttribute('transform', `translate(${112.5 + textXOffsets[row]}, ${-yOffset})`);
-                        
+                            answerDrawing.setAttribute('transform', `translate(${offsetX},${offsetY}) scale(${scale}) translate(${-minX},${-minY})`);
                             answer.forEach(pathData => {
                                 const newPath = pathData.path.cloneNode(true);
-                                const scaleX = 250 / 650;
-                                const scaleY = 60 / 150;
-                                const offsetX = (pathData.offsetX - 100) * scaleX;
-                                const offsetY = (pathData.offsetY - 200) * scaleY;
-                                const transform = `translate(${-offsetX - 125}, ${-offsetY - 15})`;
-                                newPath.setAttribute('transform', transform + ` scale(${scaleX}, ${scaleY})`);
                                 answerDrawing.appendChild(newPath);
                             });
-                            
                             answerGroup.appendChild(answerDrawing);
                         }
 
-                        // Add votes count (keep with box)
+                        // Add votes count
                         const votesText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-                        votesText.setAttribute('x', '280');
-                        votesText.setAttribute('y', '85');
+                        votesText.setAttribute('x', answerBoxWidth - 10);
+                        votesText.setAttribute('y', answerBoxHeight - 15);
                         votesText.setAttribute('fill', '#333');
-                        votesText.setAttribute('font-size', '12');
+                        votesText.setAttribute('font-size', Math.min(svgWidth * 0.008, 12));
                         votesText.setAttribute('text-anchor', 'end');
                         votesText.textContent = `${votes} votes`;
                         answerGroup.appendChild(votesText);
 
-                        // Add click handler (keep with box)
-                    const clickArea = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-                    clickArea.setAttribute('x', '0');
-                    clickArea.setAttribute('y', '0');
-                        clickArea.setAttribute('width', '310');
-                        clickArea.setAttribute('height', '100');
-                    clickArea.setAttribute('fill', 'transparent');
-                    clickArea.style.cursor = 'pointer';
-                    clickArea.onclick = () => {
-                        if (!question.correctAnswers) {
-                            question.correctAnswers = new Set();
-                        }
-                        if (question.correctAnswers.has(answerId)) {
-                            question.correctAnswers.delete(answerId);
-                            answerBox.setAttribute('fill', '#4A90E2');
+                        // Add click handler
+                        const clickArea = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                        clickArea.setAttribute('x', '0');
+                        clickArea.setAttribute('y', '0');
+                        clickArea.setAttribute('width', answerBoxWidth);
+                        clickArea.setAttribute('height', answerBoxHeight);
+                        clickArea.setAttribute('fill', 'transparent');
+                        clickArea.style.cursor = 'pointer';
+                        clickArea.onclick = () => {
+                            if (!question.correctAnswers) {
+                                question.correctAnswers = new Set();
+                            }
+                            if (question.correctAnswers.has(answerId)) {
+                                question.correctAnswers.delete(answerId);
+                                answerBox.setAttribute('fill', '#4A90E2');
                                 answerBox.setAttribute('opacity', '0.2');
-                        } else {
-                            question.correctAnswers.add(answerId);
-                            answerBox.setAttribute('fill', '#4CAF50');
+                            } else {
+                                question.correctAnswers.add(answerId);
+                                answerBox.setAttribute('fill', '#4CAF50');
                                 answerBox.setAttribute('opacity', '0.2');
-                        }
-                    };
-                    answerGroup.appendChild(clickArea);
+                            }
+                        };
+                        answerGroup.appendChild(clickArea);
 
                         rowGroup.appendChild(answerGroup);
                     }
@@ -2433,45 +2584,19 @@
                 const totalVotes = question.votes.reduce((sum, v) => sum + v.votes, 0);
                 const summary = document.createElementNS("http://www.w3.org/2000/svg", "text");
                 summary.setAttribute('x', '0');
-                summary.setAttribute('y', '360'); // Adjusted to match new spacing
+                const answersPerRow = 4;
+                const numAnswers = answers.length;
+                const numRows = Math.ceil(numAnswers / answersPerRow);
+                const extraMargin = 30;
+                summary.setAttribute('y', (answerBoxHeight + 20) * numRows + extraMargin);
                 summary.setAttribute('fill', '#666');
-                summary.setAttribute('font-size', '14');
+                summary.setAttribute('font-size', Math.min(svgWidth * 0.01, 14));
                 summary.textContent = `Total votes: ${totalVotes}`;
                 questionGroup.appendChild(summary);
 
                 resultsOverlay.appendChild(questionGroup);
-                yPos += 480; // Increased spacing between questions to accommodate larger answer spacing
+                yPos += questionSpacing;
             });
-
-            // Add close button in top right corner
-            const resultsCloseButton = document.createElementNS("http://www.w3.org/2000/svg", "g");
-            resultsCloseButton.style.cursor = 'pointer';
-            resultsCloseButton.setAttribute('transform', 'translate(1640, 65)');
-
-            const resultsCloseBox = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-            resultsCloseBox.setAttribute('x', '0');
-            resultsCloseBox.setAttribute('y', '0');
-            resultsCloseBox.setAttribute('width', '30');
-            resultsCloseBox.setAttribute('height', '30');
-            resultsCloseBox.setAttribute('fill', '#ff4b4b');
-            resultsCloseBox.setAttribute('rx', '5');
-
-            const resultsCloseX = document.createElementNS("http://www.w3.org/2000/svg", "text");
-            resultsCloseX.setAttribute('x', '15');
-            resultsCloseX.setAttribute('y', '20');
-            resultsCloseX.setAttribute('text-anchor', 'middle');
-            resultsCloseX.setAttribute('fill', 'white');
-            resultsCloseX.setAttribute('font-size', '20');
-            resultsCloseX.setAttribute('font-weight', 'bold');
-            resultsCloseX.textContent = '×';
-
-            resultsCloseButton.onclick = () => {
-                resultsOverlay.remove();
-            };
-
-            resultsCloseButton.appendChild(resultsCloseBox);
-            resultsCloseButton.appendChild(resultsCloseX);
-            resultsOverlay.appendChild(resultsCloseButton);
 
             svg.appendChild(resultsOverlay);
         }
@@ -2576,13 +2701,25 @@
             drawingArea.setAttribute('fill', 'transparent');
             drawingArea.setAttribute('stroke', 'none');
             
+            // Create single resize handle in bottom-right corner
+            const resizeHandle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            resizeHandle.setAttribute('cx', '200');
+            resizeHandle.setAttribute('cy', '200');
+            resizeHandle.setAttribute('r', '5');
+            resizeHandle.setAttribute('fill', '#4A90E2');
+            resizeHandle.setAttribute('stroke', '#000000');
+            resizeHandle.setAttribute('stroke-width', '1');
+            resizeHandle.style.cursor = 'se-resize';
+            resizeHandle.style.display = 'none';
+            
             content.appendChild(drawingArea);
             
             postIt.appendChild(background);
             postIt.appendChild(content);
+            postIt.appendChild(resizeHandle);
             
             // Store post-it note
-            postItNotes.set(id, {
+            const postItData = {
                 element: postIt,
                 content: content,
                 background: background,
@@ -2590,25 +2727,61 @@
                 paths: new Map(),
                 currentPath: null,
                 isDrawing: false,
-                color: color
-            });
+                color: color,
+                resizeHandle: resizeHandle,
+                isResizing: false,
+                originalSize: { width: 200, height: 200 }
+            };
+            postItNotes.set(id, postItData);
             
-            // Add event listeners to the entire post-it group
+            // Add event listeners
             postIt.addEventListener('mousedown', (e) => {
                 if (currentMode === 'select') {
                     e.preventDefault();
                     e.stopPropagation();
+                    
+                    // Check if clicking on resize handle
+                    if (e.target === resizeHandle) {
+                        postItData.isResizing = true;
+                        postItData.originalSize = {
+                            width: parseFloat(background.getAttribute('width')),
+                            height: parseFloat(background.getAttribute('height'))
+                        };
+                        const mousePos = getMousePosition(e);
+                        postItData.resizeStart = {
+                            x: mousePos.x,
+                            y: mousePos.y
+                        };
+                        return;
+                    }
+                    
                     isDragging = true;
                     selectedElement = postIt;
                     
-                    const transform = postIt.getAttribute('transform');
-                    const translateMatch = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
-                    const currentX = translateMatch ? parseFloat(translateMatch[1]) : 0;
-                    const currentY = translateMatch ? parseFloat(translateMatch[2]) : 0;
-                    
+                    // Get initial mouse position
                     const mousePos = getMousePosition(e);
-                    offset.x = mousePos.x - currentX;
-                    offset.y = mousePos.y - currentY;
+                    offset.x = mousePos.x;
+                    offset.y = mousePos.y;
+                    
+                    // Add to selected elements
+                    selectedElements.add(postIt);
+                    postIt.classList.add('selected');
+                    
+                    // Show resize handle when selected
+                    resizeHandle.style.display = 'block';
+                }
+            });
+            
+            // Add mouseover/mouseout events to show/hide handle
+            postIt.addEventListener('mouseover', () => {
+                if (selectedElements.has(postIt)) {
+                    resizeHandle.style.display = 'block';
+                }
+            });
+            
+            postIt.addEventListener('mouseout', (e) => {
+                if (!postItData.isResizing && e.relatedTarget !== resizeHandle) {
+                    resizeHandle.style.display = 'none';
                 }
             });
             
@@ -2616,9 +2789,6 @@
                 if (currentMode === 'draw') {
                     e.preventDefault();
                     e.stopPropagation();
-                    
-                    const postItData = postItNotes.get(id);
-                    if (!postItData) return;
                     
                     postItData.isDrawing = true;
                     const pos = getPostItMousePosition(e, postIt);
@@ -2635,7 +2805,6 @@
                     postItData.paths.set(Date.now(), path);
                     postItData.content.appendChild(path);
                     
-                    // Store initial position for drawing
                     pathData = [pos];
                 }
             });
@@ -2707,27 +2876,51 @@
                 element: group,
                 isCollapsed: false,
                 background: background,
-                toggleButton: toggleButton
+                toggleButton: toggleButton,
+                bbox: bbox
             });
             
             // Add event listeners
-            background.addEventListener('mousedown', (e) => startDraggingGroup(e, group));
-            toggleButton.addEventListener('click', () => toggleGroup(group));
+            group.addEventListener('mousedown', (e) => {
+                // Don't start dragging if clicking the toggle button
+                if (e.target === toggleButton || e.target === minus || toggleButton.contains(e.target)) {
+                    return;
+                }
+                
+                if (currentMode === 'select') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    isDragging = true;
+                    selectedElement = group;
+                    
+                    const mousePos = getMousePosition(e);
+                    const transform = group.getAttribute('transform') || 'translate(0,0)';
+                    const translateMatch = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
+                    const currentX = translateMatch ? parseFloat(translateMatch[1]) : 0;
+                    const currentY = translateMatch ? parseFloat(translateMatch[2]) : 0;
+                    
+                    offset.x = mousePos.x - currentX;
+                    offset.y = mousePos.y - currentY;
+                    
+                    // Add to selected elements
+                    selectedElements.clear();
+                    selectedElements.add(group);
+                    group.classList.add('selected');
+                }
+            });
+            
+            toggleButton.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+            
+            toggleButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleGroup(group);
+            });
             
             svg.appendChild(group);
-        }
-
-        function startDraggingGroup(e, group) {
-            if (currentMode !== 'select') return;
-            
-            e.preventDefault();
-            isDragging = true;
-            selectedElement = group;
-            
-            const bbox = group.getBBox();
-            const mousePos = getMousePosition(e);
-            offset.x = mousePos.x - bbox.x;
-            offset.y = mousePos.y - bbox.y;
         }
 
         function toggleGroup(group) {
@@ -2735,6 +2928,10 @@
             if (!groupData) return;
             
             groupData.isCollapsed = !groupData.isCollapsed;
+            
+            // Update the group's bbox
+            groupData.bbox = group.getBBox();
+            const bbox = groupData.bbox;
             
             // Toggle visibility of post-its
             const postIts = group.querySelectorAll('.postit-note');
@@ -2744,13 +2941,40 @@
             
             // Update toggle button
             const toggleButton = groupData.toggleButton;
-            toggleButton.querySelector('line').setAttribute('y2', groupData.isCollapsed ? bbox.y - 5 : bbox.y - 5);
+            const line = toggleButton.querySelector('line');
+            
+            // Update toggle button position
+            toggleButton.setAttribute('cx', bbox.x + bbox.width + 5);
+            toggleButton.setAttribute('cy', bbox.y - 5);
+            
             if (groupData.isCollapsed) {
-                toggleButton.querySelector('line').setAttribute('y2', bbox.y - 5);
-                toggleButton.querySelector('line').setAttribute('x2', bbox.x + bbox.width + 10);
+                // Change to plus sign
+                line.setAttribute('x1', bbox.x + bbox.width + 5);
+                line.setAttribute('y1', bbox.y - 5);
+                line.setAttribute('x2', bbox.x + bbox.width + 5);
+                line.setAttribute('y2', bbox.y + 5);
+                
+                // Add horizontal line for plus sign
+                const horizontalLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                horizontalLine.setAttribute('x1', bbox.x + bbox.width);
+                horizontalLine.setAttribute('y1', bbox.y);
+                horizontalLine.setAttribute('x2', bbox.x + bbox.width + 10);
+                horizontalLine.setAttribute('y2', bbox.y);
+                horizontalLine.setAttribute('stroke', 'white');
+                horizontalLine.setAttribute('stroke-width', '2');
+                toggleButton.appendChild(horizontalLine);
             } else {
-                toggleButton.querySelector('line').setAttribute('y2', bbox.y - 5);
-                toggleButton.querySelector('line').setAttribute('x2', bbox.x + bbox.width + 10);
+                // Change back to minus sign
+                line.setAttribute('x1', bbox.x + bbox.width);
+                line.setAttribute('y1', bbox.y - 5);
+                line.setAttribute('x2', bbox.x + bbox.width + 10);
+                line.setAttribute('y2', bbox.y - 5);
+                
+                // Remove horizontal line
+                const horizontalLine = toggleButton.querySelector('line:last-child');
+                if (horizontalLine) {
+                    horizontalLine.remove();
+                }
             }
         }
 
@@ -2766,6 +2990,61 @@
 
         // Remove zoom event listener
         svg.removeEventListener('wheel', zoom);
+
+        function startLasso(evt) {
+            lassoPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            lassoPath.setAttribute("class", "lasso-path");
+            lassoPath.setAttribute("d", `M ${pathData[0].x} ${pathData[0].y}`);
+            pathGroup.appendChild(lassoPath);
+        }
+
+        function updateLasso(evt) {
+            if (!lassoPath) return;
+            
+            const d = pathData.map((point, i) => 
+                i === 0 ? `M ${point.x} ${point.y}` : `L ${point.x} ${point.y}`
+            ).join(" ") + " Z";
+            
+            lassoPath.setAttribute("d", d);
+        }
+
+        function selectElementsInLasso() {
+            if (!lassoPath) return;
+            
+            // Get the lasso path's bounding box
+            const bbox = lassoPath.getBBox();
+            
+            // Get all elements that could be selected
+            const elements = Array.from(pathGroup.querySelectorAll('g'));
+            
+            // Clear previous selections
+            clearSelections();
+            
+            // Check each element
+            elements.forEach(element => {
+                const elementBBox = element.getBBox();
+                
+                // Check if element's center is within the lasso path
+                const centerX = elementBBox.x + elementBBox.width / 2;
+                const centerY = elementBBox.y + elementBBox.height / 2;
+                
+                // Create a point to check
+                const point = svg.createSVGPoint();
+                point.x = centerX;
+                point.y = centerY;
+                
+                // Check if point is inside the lasso path
+                if (lassoPath.isPointInFill(point)) {
+                    selectedElements.add(element);
+                    element.classList.add('selected');
+                }
+            });
+
+            // Switch to select mode if any elements were selected
+            if (selectedElements.size > 0) {
+                setMode('select');
+            }
+        }
     </script>
 </body>
 </html> 
