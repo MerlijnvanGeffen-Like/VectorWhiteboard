@@ -714,7 +714,12 @@
             }
         });
 
-        svg.addEventListener('mouseleave', endPan);
+        svg.addEventListener('mouseleave', (evt) => {
+            if (currentMode === 'eraser') {
+                removeEraserCursor();
+            }
+            endPan();
+        });
 
         // Update touch handling
         function handleTouchPan(evt) {
@@ -1082,6 +1087,20 @@
                         postItData.resizeHandle.setAttribute('cy', newHeight);
                     }
                 });
+            } else if (currentMode === 'eraser') {
+                if (isDrawing) {
+                    createEraserCursor(); // Zorg dat de gum-cursor altijd zichtbaar is
+                    updateEraserCursor(evt);
+                    erase(evt);
+                } else {
+                    createEraserCursor(); // Ook tonen als je alleen beweegt in gum-modus
+                    updateEraserCursor(evt);
+                }
+            } else if (currentMode === 'lasso') {
+                isDrawing = true;
+                const pos = getMousePosition(evt);
+                pathData = [pos];
+                startLasso(evt);
             }
         }
 
@@ -1110,7 +1129,7 @@
                     eraserPath.remove();
                     eraserPath = null;
                 }
-                removeEraserCursor();
+                removeEraserCursor(); // Always remove the eraser cursor on mouse up
             } else if (currentMode === 'lasso') {
                 isDrawing = false;
                 if (lassoPath) {
@@ -1359,6 +1378,8 @@
         }
 
         function createEraserCursor() {
+            // Remove any existing eraser cursor before creating a new one
+            removeEraserCursor();
             const eraserCursor = document.createElementNS("http://www.w3.org/2000/svg", "circle");
             eraserCursor.id = 'eraserCursor';
             eraserCursor.setAttribute('cx', '0');
@@ -1373,8 +1394,8 @@
 
         function removeEraserCursor() {
             const eraserCursor = document.getElementById('eraserCursor');
-            if (eraserCursor) {
-                eraserCursor.remove();
+            if (eraserCursor && eraserCursor.parentNode) {
+                eraserCursor.parentNode.removeChild(eraserCursor);
             }
         }
 
@@ -1403,12 +1424,18 @@
         function erase(evt) {
             if (!eraserPath) return;
             
+            const pos = getMousePosition(evt);
+            eraserPoints.push(pos);
+            
+            // Update eraser path visualization
             const d = eraserPoints.map((point, i) => 
                 i === 0 ? `M ${point.x} ${point.y}` : `L ${point.x} ${point.y}`
             ).join(" ");
             
             eraserPath.setAttribute("d", d);
-            eraserPath.setAttribute("stroke-width", currentStrokeWidth * ERASER_MULTIPLIER);
+            
+            // Get eraser radius
+            const eraserRadius = currentStrokeWidth * ERASER_MULTIPLIER / 2;
             
             // Check for intersections with existing paths
             const paths = pathGroup.getElementsByClassName("path");
@@ -1421,12 +1448,14 @@
                 
                 // Create new path segments excluding erased parts
                 const newSegments = [];
+                let currentSegment = '';
+                let isErased = false;
+                
                 for (let i = 0; i < pathSegments.length; i++) {
                     const segment = pathSegments[i];
-                    const points = segment.match(/\d+(\.\d+)?/g).map(Number);
+                    const points = segment.match(/[-+]?[0-9]*\.?[0-9]+/g).map(Number);
                     
                     // Check if any point in the segment is within eraser radius
-                    let shouldKeep = true;
                     for (let j = 0; j < points.length; j += 2) {
                         const x = points[j];
                         const y = points[j + 1];
@@ -1436,18 +1465,25 @@
                             const dy = y - eraserPoint.y;
                             const distance = Math.sqrt(dx * dx + dy * dy);
                             
-                            if (distance < (currentStrokeWidth * ERASER_MULTIPLIER)/2) {
-                                shouldKeep = false;
+                            if (distance < eraserRadius) {
+                                isErased = true;
                                 break;
                             }
                         }
                         
-                        if (!shouldKeep) break;
+                        if (isErased) break;
                     }
                     
-                    if (shouldKeep) {
-                        newSegments.push(segment);
+                    if (!isErased) {
+                        if (currentSegment) {
+                            newSegments.push(currentSegment);
+                        }
+                        currentSegment = segment;
                     }
+                }
+                
+                if (currentSegment) {
+                    newSegments.push(currentSegment);
                 }
                 
                 if (newSegments.length > 0) {
@@ -1877,42 +1913,12 @@
                     hitbox.style.pointerEvents = 'all';
                     hitbox.style.cursor = 'pointer';
 
-                    // Add click handlers for voting to the hitbox instead of the box
-                    hitbox.onclick = (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (currentMode === 'select') {
-                            handleAnswerVote(boxId, box, false);
-                        }
-                    };
-
-                    // Right click/long press handler
-                    hitbox.oncontextmenu = (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (currentMode === 'select') {
-                            handleAnswerVote(boxId, box, true);
-                        }
-                        return false;
-                    };
-
-                    // Touch long press handler
-                    let touchTimer;
-                    hitbox.ontouchstart = (e) => {
-                        touchTimer = setTimeout(() => {
-                            if (currentMode === 'select') {
-                                handleAnswerVote(boxId, box, true);
-                            }
-                        }, 500); // 500ms for long press
-                    };
-
-                    hitbox.ontouchend = (e) => {
-                        clearTimeout(touchTimer);
-                    };
-
-                    hitbox.ontouchmove = (e) => {
-                        clearTimeout(touchTimer);
-                    };
+                    // Remove click handlers for voting from the hitbox
+                    hitbox.onclick = null;
+                    hitbox.oncontextmenu = null;
+                    hitbox.ontouchstart = null;
+                    hitbox.ontouchend = null;
+                    hitbox.ontouchmove = null;
 
                     answerBox.appendChild(box);
                     answerBox.appendChild(hitbox);
@@ -1948,6 +1954,89 @@
                     answerBox.appendChild(number);
                     answerBox.appendChild(voteCounter);
                     answerBox.appendChild(answerText);
+
+                    // Voeg plus en min knoppen toe
+                    const buttonGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                    buttonGroup.setAttribute('transform', `translate(${x + boxWidth - 90}, ${y + boxHeight - 40})`);
+
+                    // Plus knop
+                    const plusButton = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                    plusButton.setAttribute('x', '50');
+                    plusButton.setAttribute('y', '0');
+                    plusButton.setAttribute('width', '35');
+                    plusButton.setAttribute('height', '35');
+                    plusButton.setAttribute('fill', '#4CAF50');
+                    plusButton.setAttribute('rx', '5');
+                    plusButton.style.cursor = 'pointer';
+                    plusButton.style.pointerEvents = 'all';
+
+                    const plusText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    plusText.setAttribute('x', '67.5');
+                    plusText.setAttribute('y', '23');
+                    plusText.setAttribute('text-anchor', 'middle');
+                    plusText.setAttribute('fill', 'white');
+                    plusText.setAttribute('font-size', '24');
+                    plusText.setAttribute('font-weight', 'bold');
+                    plusText.textContent = '+';
+                    plusText.style.cursor = 'pointer';
+                    plusText.style.pointerEvents = 'all';
+
+                    // Min knop
+                    const minButton = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                    minButton.setAttribute('x', '0');
+                    minButton.setAttribute('y', '0');
+                    minButton.setAttribute('width', '35');
+                    minButton.setAttribute('height', '35');
+                    minButton.setAttribute('fill', '#E74C3C');
+                    minButton.setAttribute('rx', '5');
+                    minButton.style.cursor = 'pointer';
+                    minButton.style.pointerEvents = 'all';
+
+                    const minText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    minText.setAttribute('x', '17.5');
+                    minText.setAttribute('y', '23');
+                    minText.setAttribute('text-anchor', 'middle');
+                    minText.setAttribute('fill', 'white');
+                    minText.setAttribute('font-size', '24');
+                    minText.setAttribute('font-weight', 'bold');
+                    minText.textContent = '−';
+                    minText.style.cursor = 'pointer';
+                    minText.style.pointerEvents = 'all';
+
+                    // Add click handlers
+                    plusButton.onmousedown = function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        let votes = parseInt(box.getAttribute('data-votes')) || 0;
+                        votes++;
+                        box.setAttribute('data-votes', votes);
+                        voteCounter.textContent = votes;
+                    };
+
+                    plusText.onmousedown = plusButton.onmousedown;
+
+                    minButton.onmousedown = function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        let votes = parseInt(box.getAttribute('data-votes')) || 0;
+                        votes = Math.max(0, votes - 1);
+                        box.setAttribute('data-votes', votes);
+                        voteCounter.textContent = votes;
+                    };
+
+                    minText.onmousedown = minButton.onmousedown;
+
+                    // Add hover effects
+                    plusButton.onmouseover = function() { this.setAttribute('fill', '#45a049'); };
+                    plusButton.onmouseout = function() { this.setAttribute('fill', '#4CAF50'); };
+                    minButton.onmouseover = function() { this.setAttribute('fill', '#d32f2f'); };
+                    minButton.onmouseout = function() { this.setAttribute('fill', '#E74C3C'); };
+
+                    buttonGroup.appendChild(minButton);
+                    buttonGroup.appendChild(minText);
+                    buttonGroup.appendChild(plusButton);
+                    buttonGroup.appendChild(plusText);
+                    answerBox.appendChild(buttonGroup);
 
                     boxBackgrounds.appendChild(answerBox);
                 }
@@ -2349,6 +2438,7 @@
             const closeButton = document.createElementNS("http://www.w3.org/2000/svg", "g");
             closeButton.style.cursor = 'pointer';
             closeButton.setAttribute('transform', `translate(${margin + contentWidth - 35}, ${margin + 5})`);
+            closeButton.style.pointerEvents = 'all';
 
             const closeBox = document.createElementNS("http://www.w3.org/2000/svg", "rect");
             closeBox.setAttribute('x', '0');
@@ -2357,6 +2447,7 @@
             closeBox.setAttribute('height', '30');
             closeBox.setAttribute('fill', '#ff4b4b');
             closeBox.setAttribute('rx', '5');
+            closeBox.style.pointerEvents = 'all';
 
             const closeX = document.createElementNS("http://www.w3.org/2000/svg", "text");
             closeX.setAttribute('x', '15');
@@ -2366,18 +2457,29 @@
             closeX.setAttribute('font-size', '20');
             closeX.setAttribute('font-weight', 'bold');
             closeX.textContent = '×';
+            closeX.style.pointerEvents = 'all';
 
-            closeButton.onclick = () => {
+            // Add hover effect
+            closeButton.onmouseover = () => {
+                closeBox.setAttribute('fill', '#d32f2f');
+            };
+            closeButton.onmouseout = () => {
+                closeBox.setAttribute('fill', '#ff4b4b');
+            };
+
+            closeButton.onmousedown = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 resultsOverlay.remove();
             };
 
             closeButton.appendChild(closeBox);
             closeButton.appendChild(closeX);
-            resultsOverlay.appendChild(closeButton);
 
             resultsOverlay.appendChild(background);
             resultsOverlay.appendChild(contentBackground);
             resultsOverlay.appendChild(title);
+            resultsOverlay.appendChild(closeButton);
 
             // Add results for each question
             let yPos = margin + padding * 2;
