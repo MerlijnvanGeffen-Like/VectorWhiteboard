@@ -17,66 +17,66 @@
             </svg>
         </div>
         <div class="bottom-bar">
-            <div class="mode-group">
-                <button onclick="setMode('draw')" id="drawMode">
-                    <i class="fas fa-pen"></i> Draw
-                </button>
-                <button onclick="setMode('select')" id="selectMode">
-                    <i class="fas fa-mouse-pointer"></i> Select
-                </button>
-                <button onclick="setMode('move')" id="moveMode">
-                    <i class="fas fa-arrows-alt"></i> Move
-                </button>
-                <button onclick="setMode('eraser')" id="eraserMode">
-                    <i class="fas fa-eraser"></i> Eraser
-                </button>
-                <button onclick="setMode('lasso')" id="lassoMode">
-                    <i class="fas fa-magic"></i> Lasso
-                </button>
-            </div>
-            <div class="color-squares" id="colorSquares">
-                <div class="color-square selected" style="background-color: #000000" onclick="updateStrokeColor('#000000', this)"></div>
-                <div class="color-square" style="background-color: #FF0000" onclick="updateStrokeColor('#FF0000', this)"></div>
-                <div class="color-square" style="background-color: #00FF00" onclick="updateStrokeColor('#00FF00', this)"></div>
-                <div class="color-square" style="background-color: #0000FF" onclick="updateStrokeColor('#0000FF', this)"></div>
-                <div class="color-square" style="background-color: #FFA500" onclick="updateStrokeColor('#FFA500', this)"></div>
-                <div class="color-square" style="background-color: #800080" onclick="updateStrokeColor('#800080', this)"></div>
-                <div class="color-square" style="background-color: #008080" onclick="updateStrokeColor('#008080', this)"></div>
-                <div class="color-square" style="background-color: #FF69B4" onclick="updateStrokeColor('#FF69B4', this)"></div>
-                <div class="color-square custom" id="customColorSquare" onclick="updateStrokeColor(document.getElementById('strokeColor').value, this)">
-                    <input type="color" id="strokeColor" value="#FFFFFF" onchange="updateStrokeColor(this.value, document.getElementById('customColorSquare'))">
-                </div>
-            </div>
-            <div class="stroke-width">
-                <input type="range" id="strokeWidth" min="3" max="10" value="3" onchange="updateStrokeWidth(this.value)">
-                <span id="strokeWidthValue">3</span>
-            </div>
-            <div class="mode-group">
-                <button onclick="clearDrawing()" class="danger">
-                    <i class="fas fa-trash"></i> Clear All
-                </button>
-                <button onclick="deletePath()" class="danger">
-                    <i class="fas fa-times"></i> Delete Selected
-                </button>
-                <button id="addPostItButton">
-                    <i class="fas fa-sticky-note"></i> Add Post-it
-                </button>
-                <button onclick="createGroup()">
-                    <i class="fas fa-object-group"></i> Group
-                </button>
-                <button onclick="createPoll()">
-                    <i class="fas fa-poll"></i> Create Poll
-                </button>
-                <button onclick="deletePoll()" class="danger">
-                    <i class="fas fa-trash-alt"></i> Delete Poll
-                </button>
-                <button onclick="createQuiz()">
-                    <i class="fas fa-question-circle"></i> Create Quiz
-                </button>
-                <button onclick="deleteQuiz()" class="danger">
-                    <i class="fas fa-trash-alt"></i> Delete Quiz
-                </button>
-            </div>
+                        <div class="mode-group">
+                            <button onclick="setMode('draw')" id="drawMode">
+                                <i class="fas fa-pen"></i> Draw
+                            </button>
+                            <button onclick="setMode('select')" id="selectMode">
+                                <i class="fas fa-mouse-pointer"></i> Select
+                            </button>
+                            <button onclick="setMode('move')" id="moveMode">
+                                <i class="fas fa-arrows-alt"></i> Move
+                            </button>
+                            <button onclick="setMode('eraser')" id="eraserMode">
+                                <i class="fas fa-eraser"></i> Eraser
+                            </button>
+                            <button onclick="setMode('lasso')" id="lassoMode">
+                                <i class="fas fa-magic"></i> Lasso
+                            </button>
+                        </div>
+                        <div class="color-squares" id="colorSquares">
+                            <div class="color-square selected" style="background-color: #000000" onclick="updateStrokeColor('#000000', this)"></div>
+                            <div class="color-square" style="background-color: #FF0000" onclick="updateStrokeColor('#FF0000', this)"></div>
+                            <div class="color-square" style="background-color: #00FF00" onclick="updateStrokeColor('#00FF00', this)"></div>
+                            <div class="color-square" style="background-color: #0000FF" onclick="updateStrokeColor('#0000FF', this)"></div>
+                            <div class="color-square" style="background-color: #FFA500" onclick="updateStrokeColor('#FFA500', this)"></div>
+                            <div class="color-square" style="background-color: #800080" onclick="updateStrokeColor('#800080', this)"></div>
+                            <div class="color-square" style="background-color: #008080" onclick="updateStrokeColor('#008080', this)"></div>
+                            <div class="color-square" style="background-color: #FF69B4" onclick="updateStrokeColor('#FF69B4', this)"></div>
+                            <div class="color-square custom" id="customColorSquare" onclick="updateStrokeColor(document.getElementById('strokeColor').value, this)">
+                                <input type="color" id="strokeColor" value="#FFFFFF" onchange="updateStrokeColor(this.value, document.getElementById('customColorSquare'))">
+                            </div>
+                        </div>
+                        <div class="stroke-width">
+                            <input type="range" id="strokeWidth" min="3" max="10" value="3" onchange="updateStrokeWidth(this.value)">
+                            <span id="strokeWidthValue">3</span>
+                        </div>
+                        <div class="mode-group">
+                            <button onclick="clearDrawing()" class="danger">
+                                <i class="fas fa-trash"></i> Clear All
+                            </button>
+                            <button onclick="deletePath()" class="danger">
+                                <i class="fas fa-times"></i> Delete Selected
+                            </button>
+                            <button id="addPostItButton">
+                                <i class="fas fa-sticky-note"></i> Add Post-it
+                            </button>
+                            <button onclick="createGroup()">
+                                <i class="fas fa-object-group"></i> Group
+                            </button>
+                            <button onclick="createPoll()">
+                                <i class="fas fa-poll"></i> Create Poll
+                            </button>
+                            <button onclick="deletePoll()" class="danger">
+                                <i class="fas fa-trash-alt"></i> Delete Poll
+                            </button>
+                            <button onclick="createQuiz()">
+                                <i class="fas fa-question-circle"></i> Create Quiz
+                            </button>
+                            <button onclick="deleteQuiz()" class="danger">
+                                <i class="fas fa-trash-alt"></i> Delete Quiz
+                            </button>
+                    </div>
         </div>
     </div>
 
