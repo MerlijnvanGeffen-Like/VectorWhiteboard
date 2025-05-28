@@ -37,6 +37,7 @@ interface MiniWhiteboardProps {
   style?: React.CSSProperties;
   offsetX?: number;
   offsetY?: number;
+  mode?: 'draw' | 'eraser';
 }
 
 const MiniWhiteboard = forwardRef<MiniWhiteboardHandle, MiniWhiteboardProps>(({
@@ -49,6 +50,7 @@ const MiniWhiteboard = forwardRef<MiniWhiteboardHandle, MiniWhiteboardProps>(({
   style,
   offsetX = 0,
   offsetY = 0,
+  mode = 'draw',
 }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -84,7 +86,17 @@ const MiniWhiteboard = forwardRef<MiniWhiteboardHandle, MiniWhiteboardProps>(({
     return { x, y };
   };
 
+  const handlePathMouseDown = (e: React.MouseEvent, id: string) => {
+    if (mode === 'eraser') {
+      e.stopPropagation();
+      const newPaths = paths.filter(p => p.id !== id);
+      setPaths(newPaths);
+      if (onChange) onChange(newPaths);
+    }
+  };
+
   const startDrawing = (event: React.MouseEvent) => {
+    if (mode !== 'draw') return;
     const point = getMousePosition(event);
     setIsDrawing(true);
     setCurrentPath({
@@ -125,6 +137,7 @@ const MiniWhiteboard = forwardRef<MiniWhiteboardHandle, MiniWhiteboardProps>(({
         onMouseMove={draw}
         onMouseUp={endDrawing}
         onMouseLeave={endDrawing}
+        style={{ cursor: mode === 'eraser' ? 'pointer' : 'crosshair' }}
       >
         <g>
           {paths.map((path) => (
@@ -140,6 +153,8 @@ const MiniWhiteboard = forwardRef<MiniWhiteboardHandle, MiniWhiteboardProps>(({
               fill="none"
               strokeLinecap="round"
               strokeLinejoin="round"
+              onMouseDown={e => handlePathMouseDown(e, path.id)}
+              style={mode === 'eraser' ? { cursor: 'pointer' } : {}}
             />
           ))}
           {currentPath && (

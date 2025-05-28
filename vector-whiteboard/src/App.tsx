@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
-import Toolbar from './components/Toolbar';
 import Whiteboard from './components/Whiteboard';
 import QuizCreation from './components/QuizCreation';
 import QuizResult from './components/QuizResult';
-import styled from 'styled-components';
+import RevealCorrect from './components/RevealCorrect';
+import styled, { keyframes } from 'styled-components';
 import PaletteIcon from '@mui/icons-material/Palette';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import LooksOneIcon from '@mui/icons-material/LooksOne';
@@ -15,7 +15,6 @@ import TextFieldsIcon from '@mui/icons-material/TextFields';
 import KeyboardIcon from '@mui/icons-material/Keyboard';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import LoginIcon from '@mui/icons-material/Login';
-import { keyframes } from 'styled-components';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import SearchIcon from '@mui/icons-material/Search';
 import WhatshotIcon from '@mui/icons-material/Whatshot';
@@ -23,31 +22,49 @@ import HolidayVillageIcon from '@mui/icons-material/HolidayVillage';
 import QuizIcon from '@mui/icons-material/Quiz';
 import BallotIcon from '@mui/icons-material/Ballot';
 import Login from './components/Login';
+import QuizSummary from './components/QuizSummary';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import BuildIcon from '@mui/icons-material/Build';
+import CreateIcon from '@mui/icons-material/Create';
+import MouseIcon from '@mui/icons-material/Mouse';
+import OpenWithIcon from '@mui/icons-material/OpenWith';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import NoteIcon from '@mui/icons-material/Note';
+import Slider from '@mui/material/Slider';
+import TranslateIcon from '@mui/icons-material/Translate';
 
-const theme = createTheme({
-  palette: {
-    mode: 'light',
-    primary: { main: '#1976d2' },
-    secondary: { main: '#dc004e' },
-  },
-  typography: {
-    fontFamily: 'Poppins, Arial, sans-serif',
-  },
-});
+const bounce = keyframes`
+  0% { transform: scale(1); }
+  30% { transform: scale(1.15); }
+  50% { transform: scale(0.97); }
+  70% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+`;
 
-const FooterBar = styled.div`
+const FooterBar = styled.div<{ whiteboard?: boolean; themeName: string }>`
   width: 100vw;
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 18px;
-  background: #f0f2f5;
+  background: ${({ whiteboard, themeName }) => {
+    if (whiteboard) {
+      return themeName === 'dark'
+        ? 'linear-gradient(90deg, #2d2d2d 0%, #1a1a1a 100%)'
+        : themeName === 'christmas'
+        ? 'linear-gradient(90deg, #c62828 0%, #388e3c 100%)'
+        : 'linear-gradient(90deg, #ff5f6d 0%, #ff416c 100%)';
+    }
+    return 'none !important';
+  }};
+  background-color: ${({ whiteboard }) => whiteboard ? 'transparent' : 'transparent !important'};
   padding: 10px 0 10px 0;
   position: fixed;
   left: 0;
   bottom: 0;
   z-index: 100;
-  box-shadow: 0 -2px 8px #0001;
+  box-shadow: none !important;
   flex-wrap: wrap;
 `;
 
@@ -68,10 +85,16 @@ const SwitchButton = styled.button<{ active: boolean }>`
   }
 `;
 
-const FooterButton = styled.button`
+const FooterButton = styled.button<{ themeName: string }>`
   background: none;
   border: none;
-  color: #222;
+  color: ${({ themeName }) => 
+    themeName === 'dark' 
+      ? '#fff'
+      : themeName === 'christmas'
+      ? '#fff'
+      : '#fff'
+  };
   font-size: 1.5rem;
   display: flex;
   flex-direction: column;
@@ -81,13 +104,41 @@ const FooterButton = styled.button`
   padding: 0 8px;
   transition: color 0.2s;
   &:hover {
-    color: #ff416c;
+    animation: ${bounce} 0.5s;
+    color: ${({ themeName }) => 
+      themeName === 'dark' 
+        ? '#4d4d4d'
+        : themeName === 'christmas'
+        ? '#c62828'
+        : '#ff416c'
+    };
+  }
+  & span {
+    color: ${({ themeName }) => 
+      themeName === 'dark' 
+        ? '#fff'
+        : themeName === 'christmas'
+        ? '#fff'
+        : '#fff'
+    };
   }
 `;
 
-const RevealButton = styled.button`
-  background: #fff;
-  color: #ff416c;
+const RevealButton = styled.button<{ themeName: string }>`
+  background: ${({ themeName }) => 
+    themeName === 'dark' 
+      ? '#424242'
+      : themeName === 'christmas'
+      ? '#fff'
+      : '#fff'
+  };
+  color: ${({ themeName }) => 
+    themeName === 'dark' 
+      ? '#fff'
+      : themeName === 'christmas'
+      ? '#000'
+      : '#000'
+  };
   font-weight: bold;
   font-size: 1.2rem;
   border: none;
@@ -95,17 +146,40 @@ const RevealButton = styled.button`
   padding: 8px 24px;
   margin-left: 16px;
   cursor: pointer;
-  box-shadow: 0 2px 8px #ff416c22;
+  box-shadow: 0 2px 8px ${({ themeName }) => 
+    themeName === 'dark'
+      ? '#0003'
+      : themeName === 'christmas'
+      ? '#fff'
+      : '#fff'
+  };
   transition: background 0.2s, color 0.2s;
   &:hover {
-    background: #ff416c;
-    color: #fff;
+    background: ${({ themeName }) => 
+      themeName === 'dark' 
+        ? '#616161'
+        : themeName === 'christmas'
+        ? '#fff'
+        : '#fff'
+    };
+    color: #c62828;
+  }
+  & span {
+    color: #c62828;
   }
 `;
 
-const MainContent = styled.div`
+const MainContent = styled.div<{ themeName: string }>`
   min-height: calc(100vh - 60px);
   padding-bottom: 60px;
+  background: ${({ themeName }) => 
+    themeName === 'dark' 
+      ? 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
+      : themeName === 'christmas'
+      ? 'linear-gradient(135deg, #2e7d32 100%)'
+      : 'linear-gradient(135deg, #FFE3B2 0%, #660020 100%)'
+  };
+  background-attachment: fixed;
   @media (max-width: 900px) {
     padding-bottom: 120px;
   }
@@ -122,21 +196,6 @@ export interface QuizQuestion {
   questionDrawing: any;
   answers: AnswerData[];
 }
-
-const bounce = keyframes`
-  0% { transform: scale(1); }
-  30% { transform: scale(1.15); }
-  50% { transform: scale(0.97); }
-  70% { transform: scale(1.05); }
-  100% { transform: scale(1); }
-`;
-
-const AnimatedFooterButton = styled(FooterButton)`
-  &:hover {
-    animation: ${bounce} 0.5s;
-    color: #ff416c;
-  }
-`;
 
 const CustomModalOverlay = styled.div`
   position: fixed;
@@ -257,13 +316,32 @@ const ArrowAnim = styled.div`
 `;
 
 const SubmenuFooterBar = styled(FooterBar)`
-  background: #f0f2f5;
-  box-shadow: 0 -2px 8px #0001;
+  background: ${({ whiteboard, themeName }) => {
+    if (whiteboard) {
+      return themeName === 'dark'
+        ? 'linear-gradient(90deg, #2d2d2d 0%, #1a1a1a 100%)'
+        : themeName === 'christmas'
+        ? 'linear-gradient(90deg, #c62828 0%, #388e3c 100%)'
+        : 'linear-gradient(90deg, #ff5f6d 0%, #ff416c 100%)';
+    }
+    return themeName === 'dark'
+      ? '#2d2d2d'
+      : themeName === 'christmas'
+      ? '#388e3c'
+      : '#f0f2f5';
+  }};
+  box-shadow: 0 -2px 8px ${({ themeName }) => 
+    themeName === 'dark'
+      ? '#0003'
+      : themeName === 'christmas'
+      ? '#0003'
+      : '#0001'
+  };
   border-radius: 0;
 `;
 
 const App: React.FC = () => {
-  const [page, setPage] = useState<'whiteboard' | 'quiz' | 'result' | 'dashboard'>('whiteboard');
+  const [page, setPage] = useState<'whiteboard' | 'quiz' | 'reveal' | 'result' | 'dashboard' | 'summary'>('quiz');
   const [currentColor, setCurrentColor] = useState('#222');
   const [currentWidth, setCurrentWidth] = useState(4);
   const [currentMode, setCurrentMode] = useState('draw');
@@ -273,42 +351,99 @@ const App: React.FC = () => {
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showTemplateSubmenu, setShowTemplateSubmenu] = useState(false);
   const [showThemeSubmenu, setShowThemeSubmenu] = useState(false);
+  const [showToolsSubmenu, setShowToolsSubmenu] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('isLoggedIn') === 'true');
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [isGuest, setIsGuest] = useState(() => localStorage.getItem('isGuest') === 'true');
+  const [currentQuestion, setCurrentQuestion] = useState<QuizQuestion | null>(null);
+  const [selectedCorrect, setSelectedCorrect] = useState<number[]>([]);
+  const [showSummary, setShowSummary] = useState(false);
+  const [revealHandler, setRevealHandler] = useState<(() => void) | null>(null);
+  const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
+  const [lastQuizPage, setLastQuizPage] = useState<'quiz' | 'reveal' | 'result'>('quiz');
+  const [quizClearKey, setQuizClearKey] = useState(0);
+  const [quizMode, setQuizMode] = useState<'draw' | 'eraser'>('draw');
+  const [themeName, setThemeName] = useState<'default' | 'christmas' | 'dark'>('default');
+
+  const theme = createTheme({
+    palette: {
+      mode: themeName === 'dark' ? 'dark' : 'light',
+      primary: themeName === 'christmas' ? { main: '#388e3c' } : { main: '#1976d2' },
+      secondary: themeName === 'christmas' ? { main: '#c62828' } : { main: '#dc004e' },
+      background: {
+        default:
+          themeName === 'dark'
+            ? '#181818'
+            : themeName === 'christmas'
+            ? '#e8f5e9'
+            : '#fff',
+      },
+    },
+    typography: {
+      fontFamily: 'Poppins, Arial, sans-serif',
+    },
+  });
 
   // Save a question to the quiz
   const handleSaveQuestion = (question: QuizQuestion) => {
-    setQuiz(prev => [...prev, question]);
+    setCurrentQuestion(question);
+    setPage('reveal');
   };
 
   // Update correct answer for a question
-  const handleSetCorrectAnswer = (questionIdx: number, answerId: number) => {
-    setQuiz(prevQuiz => prevQuiz.map((q, idx) => {
-      if (idx !== questionIdx) return q;
-      return {
-        ...q,
-        answers: q.answers.map(a => ({ ...a, isCorrect: a.id === answerId }))
+  const handleSetCorrectAnswer = (answerIds: number[]) => {
+    if (currentQuestion) {
+      const updatedQuestion = {
+        ...currentQuestion,
+        answers: currentQuestion.answers.map(answer => ({
+          ...answer,
+          isCorrect: answerIds.includes(answer.id)
+        }))
       };
-    }));
+      setSelectedCorrect(answerIds);
+      setQuiz(prev => [...prev, updatedQuestion]);
+      setPage('result');
+    }
   };
 
-  // Reveal correct answers and show result page
-  const handleReveal = () => {
-    setReveal(true);
-    setPage('result');
-  };
+  // Register reveal handler
+  React.useEffect(() => {
+    if (page === 'reveal') {
+      setRevealHandler(() => {
+        if ((window as any).__quizRevealHandler) {
+          (window as any).__quizRevealHandler();
+        }
+      });
+    } else {
+      setRevealHandler(null);
+    }
+  }, [page]);
 
-  // Go back to quiz creation
-  const handleBackToQuiz = () => {
-    setReveal(false);
+  // Next Question: reset alles
+  const handleNextQuestion = () => {
+    setCurrentQuestion(null);
+    setSelectedCorrect([]);
     setPage('quiz');
+  };
+
+  // Back naar reveal
+  const handleBackToReveal = () => {
+    setPage('reveal');
   };
 
   const openTemplateMenu = () => { setShowTemplateSubmenu(true); setShowThemeSubmenu(false); };
   const openThemeMenu = () => { setShowThemeSubmenu(true); setShowTemplateSubmenu(false); };
-  const closeSubmenus = () => { setShowTemplateSubmenu(false); setShowThemeSubmenu(false); };
+  const openToolsMenu = () => {
+    setShowToolsSubmenu(true);
+    setShowThemeSubmenu(false);
+    setShowTemplateSubmenu(false);
+  };
+  const closeSubmenus = () => {
+    setShowThemeSubmenu(false);
+    setShowTemplateSubmenu(false);
+    setShowToolsSubmenu(false);
+  };
 
   function handleLogin(email: string, guest?: boolean) {
     setIsLoggedIn(true);
@@ -334,18 +469,9 @@ const App: React.FC = () => {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <MainContent>
+      <MainContent themeName={themeName}>
         {page === 'whiteboard' && (
           <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)' }}>
-            <Toolbar
-              onColorChange={setCurrentColor}
-              onWidthChange={setCurrentWidth}
-              onModeChange={setCurrentMode}
-              currentColor={currentColor}
-              currentWidth={currentWidth}
-              currentMode={currentMode}
-              onClearAll={() => setWhiteboardKey(prev => prev + 1)}
-            />
             <Whiteboard
               key={whiteboardKey}
               currentColor={currentColor}
@@ -356,10 +482,42 @@ const App: React.FC = () => {
           </Box>
         )}
         {page === 'quiz' && (
-          <QuizCreation onSaveQuestion={handleSaveQuestion} />
+          <QuizCreation 
+            onSaveQuestion={handleSaveQuestion} 
+            onReveal={() => {}} 
+            currentColor={currentColor} 
+            currentWidth={currentWidth} 
+            clearKey={quizClearKey} 
+            mode={quizMode} 
+            themeName={themeName}
+          />
         )}
-        {page === 'result' && (
-          <QuizResult quiz={quiz} reveal={reveal} onBack={handleBackToQuiz} onSetCorrectAnswer={handleSetCorrectAnswer} />
+        {page === 'reveal' && currentQuestion && (
+          <RevealCorrect
+            question={currentQuestion}
+            onSelectCorrect={handleSetCorrectAnswer}
+            onBack={() => setPage('quiz')}
+            onShowResult={(selected: number[]) => {
+              if (selected.length > 0) handleSetCorrectAnswer(selected);
+            }}
+            onSelectedAnswersChange={setSelectedAnswers}
+            themeName={themeName}
+          />
+        )}
+        {page === 'result' && currentQuestion && selectedCorrect.length > 0 && (
+          <QuizResult
+            question={currentQuestion}
+            correctIds={selectedCorrect}
+            onBack={handleBackToReveal}
+            onNext={handleNextQuestion}
+            themeName={themeName}
+          />
+        )}
+        {page === 'summary' && (
+          <QuizSummary
+            questions={quiz}
+            onClose={() => setPage(lastQuizPage)}
+          />
         )}
         {page === 'dashboard' && (
           <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'60vh'}}>
@@ -368,49 +526,229 @@ const App: React.FC = () => {
           </div>
         )}
       </MainContent>
-      {showThemeSubmenu ? (
-        <SubmenuFooterBar>
-          <FooterButton title="Default" onClick={() => { alert('Default theme!'); closeSubmenus(); }}><PaletteIcon /><span style={{fontSize:'0.7rem'}}>Default</span></FooterButton>
-          <FooterButton title="Christmas" onClick={() => { alert('Christmas theme!'); closeSubmenus(); }}><HolidayVillageIcon /><span style={{fontSize:'0.7rem'}}>Christmas</span></FooterButton>
-          <FooterButton title="Dark" onClick={() => { alert('Dark theme!'); closeSubmenus(); }}><WhatshotIcon /><span style={{fontSize:'0.7rem'}}>Dark</span></FooterButton>
-          <FooterButton title="Back" onClick={closeSubmenus}><ArrowForwardIosIcon style={{transform:'rotate(180deg)'}} /><span style={{fontSize:'0.7rem'}}>Back</span></FooterButton>
+      {showToolsSubmenu ? (
+        <SubmenuFooterBar whiteboard={page === 'whiteboard'} themeName={themeName}>
+          {page === 'whiteboard' ? (
+            <>
+              <FooterButton themeName={themeName} title="Draw" onClick={() => { setCurrentMode('draw'); closeSubmenus(); }}>
+                <CreateIcon />
+                <span style={{fontSize:'0.7rem'}}>Draw</span>
+              </FooterButton>
+              <FooterButton themeName={themeName} title="Select" onClick={() => { setCurrentMode('select'); closeSubmenus(); }}>
+                <MouseIcon />
+                <span style={{fontSize:'0.7rem'}}>Select</span>
+              </FooterButton>
+              <FooterButton themeName={themeName} title="Move" onClick={() => { setCurrentMode('move'); closeSubmenus(); }}>
+                <OpenWithIcon />
+                <span style={{fontSize:'0.7rem'}}>Move</span>
+              </FooterButton>
+              <FooterButton themeName={themeName} title="Eraser" onClick={() => { setCurrentMode('eraser'); closeSubmenus(); }}>
+                <DeleteIcon />
+                <span style={{fontSize:'0.7rem'}}>Eraser</span>
+              </FooterButton>
+              <FooterButton themeName={themeName} title="Lasso" onClick={() => { setCurrentMode('lasso'); closeSubmenus(); }}>
+                <AutoFixHighIcon />
+                <span style={{fontSize:'0.7rem'}}>Lasso</span>
+              </FooterButton>
+              <FooterButton themeName={themeName} title="Post-it" onClick={() => { setCurrentMode('postit'); closeSubmenus(); }}>
+                <NoteIcon />
+                <span style={{fontSize:'0.7rem'}}>Post-it</span>
+              </FooterButton>
+              <FooterButton themeName={themeName} title="Clear All" onClick={() => { setWhiteboardKey(prev => prev + 1); closeSubmenus(); }}>
+                <DeleteSweepIcon />
+                <span style={{fontSize:'0.7rem'}}>Clear All</span>
+              </FooterButton>
+              {['#000000', '#FF0000', '#00FF00', '#0000FF', '#FFA500', '#800080', '#008080', '#FF69B4'].map((color) => (
+                <Box
+                  key={color}
+                  onClick={() => setCurrentColor(color)}
+                  sx={{
+                    width: 24,
+                    height: 24,
+                    backgroundColor: color,
+                    border: `2px solid ${color === currentColor ? '#1976d2' : '#ccc'}`,
+                    borderRadius: 1,
+                    cursor: 'pointer',
+                    display: 'inline-block',
+                    marginLeft: '2px',
+                    marginRight: '2px',
+                    '&:hover': {
+                      borderColor: '#1976d2'
+                    }
+                  }}
+                />
+              ))}
+              <input
+                type="color"
+                value={currentColor}
+                onChange={(e) => setCurrentColor(e.target.value)}
+                style={{ width: 24, height: 24, padding: 0, border: 'none', marginLeft: 4, marginRight: 4 }}
+              />
+              <Box sx={{ width: 120, display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle', marginLeft: 2, marginRight: 2 }}>
+                <Slider
+                  value={currentWidth}
+                  onChange={(_, value) => setCurrentWidth(value as number)}
+                  min={1}
+                  max={20}
+                  valueLabelDisplay="auto"
+                  size="small"
+                />
+              </Box>
+              <FooterButton themeName={themeName} title="Back" onClick={closeSubmenus}>
+                <ArrowForwardIosIcon style={{transform:'rotate(180deg)'}} />
+                <span style={{fontSize:'0.7rem'}}>Back</span>
+              </FooterButton>
+            </>
+          ) : (
+            <>
+              <FooterButton themeName={themeName} title="Draw" onClick={() => { setQuizMode('draw'); closeSubmenus(); }}>
+                <CreateIcon />
+                <span style={{fontSize:'0.7rem'}}>Draw</span>
+              </FooterButton>
+              <FooterButton themeName={themeName} title="Eraser" onClick={() => { setQuizMode('eraser'); closeSubmenus(); }}>
+                <DeleteIcon />
+                <span style={{fontSize:'0.7rem'}}>Eraser</span>
+              </FooterButton>
+              <FooterButton themeName={themeName} title="Clear All" onClick={() => { setQuizClearKey(prev => prev + 1); closeSubmenus(); }}>
+                <DeleteSweepIcon />
+                <span style={{fontSize:'0.7rem'}}>Clear All</span>
+              </FooterButton>
+              {['#000000', '#FF0000', '#00FF00', '#0000FF', '#FFA500', '#800080', '#008080', '#FF69B4'].map((color) => (
+                <Box
+                  key={color}
+                  onClick={() => setCurrentColor(color)}
+                  sx={{
+                    width: 24,
+                    height: 24,
+                    backgroundColor: color,
+                    border: `2px solid ${color === currentColor ? '#1976d2' : '#ccc'}`,
+                    borderRadius: 1,
+                    cursor: 'pointer',
+                    display: 'inline-block',
+                    marginLeft: '2px',
+                    marginRight: '2px',
+                    '&:hover': {
+                      borderColor: '#1976d2'
+                    }
+                  }}
+                />
+              ))}
+              <input
+                type="color"
+                value={currentColor}
+                onChange={(e) => setCurrentColor(e.target.value)}
+                style={{ width: 24, height: 24, padding: 0, border: 'none', marginLeft: 4, marginRight: 4 }}
+              />
+              <Box sx={{ width: 120, display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle', marginLeft: 2, marginRight: 2 }}>
+                <Slider
+                  value={currentWidth}
+                  onChange={(_, value) => setCurrentWidth(value as number)}
+                  min={1}
+                  max={20}
+                  valueLabelDisplay="auto"
+                  size="small"
+                />
+              </Box>
+              <FooterButton themeName={themeName} title="Back" onClick={closeSubmenus}>
+                <ArrowForwardIosIcon style={{transform:'rotate(180deg)'}} />
+                <span style={{fontSize:'0.7rem'}}>Back</span>
+              </FooterButton>
+            </>
+          )}
+        </SubmenuFooterBar>
+      ) : showThemeSubmenu ? (
+        <SubmenuFooterBar whiteboard={page === 'whiteboard'} themeName={themeName}>
+          <FooterButton themeName={themeName} title="Default" onClick={() => { setThemeName('default'); closeSubmenus(); }}><PaletteIcon /><span style={{fontSize:'0.7rem'}}>Default</span></FooterButton>
+          <FooterButton themeName={themeName} title="Christmas" onClick={() => { setThemeName('christmas'); closeSubmenus(); }}><HolidayVillageIcon /><span style={{fontSize:'0.7rem'}}>Christmas</span></FooterButton>
+          <FooterButton themeName={themeName} title="Dark" onClick={() => { setThemeName('dark'); closeSubmenus(); }}><WhatshotIcon /><span style={{fontSize:'0.7rem'}}>Dark</span></FooterButton>
+          <FooterButton themeName={themeName} title="Back" onClick={closeSubmenus}><ArrowForwardIosIcon style={{transform:'rotate(180deg)'}} /><span style={{fontSize:'0.7rem'}}>Back</span></FooterButton>
         </SubmenuFooterBar>
       ) : showTemplateSubmenu ? (
-        <SubmenuFooterBar>
-          <FooterButton title="Quiz" onClick={() => { setPage('quiz'); closeSubmenus(); }}>
+        <SubmenuFooterBar whiteboard={page === 'whiteboard'} themeName={themeName}>
+          <FooterButton themeName={themeName} title="Quiz" onClick={() => { setPage('quiz'); closeSubmenus(); }}>
             <QuizIcon />
             <span style={{fontSize:'0.7rem'}}>Quiz</span>
           </FooterButton>
-          <FooterButton title="Whiteboard" onClick={() => { setPage('whiteboard'); closeSubmenus(); }}>
+          <FooterButton themeName={themeName} title="Whiteboard" onClick={() => { setPage('whiteboard'); closeSubmenus(); }}>
             <ViewModuleIcon />
             <span style={{fontSize:'0.7rem'}}>Whiteboard</span>
           </FooterButton>
-          <FooterButton title="Poll" onClick={() => { alert('Poll functionaliteit nog niet geïmplementeerd!'); closeSubmenus(); }}>
+          <FooterButton themeName={themeName} title="Poll" onClick={() => { alert('Poll functionaliteit nog niet geïmplementeerd!'); closeSubmenus(); }}>
             <BallotIcon />
             <span style={{fontSize:'0.7rem'}}>Poll</span>
           </FooterButton>
-          <FooterButton title="Back" onClick={closeSubmenus}>
+          <FooterButton themeName={themeName} title="Back" onClick={closeSubmenus}>
             <ArrowForwardIosIcon style={{transform:'rotate(180deg)'}} />
             <span style={{fontSize:'0.7rem'}}>Back</span>
           </FooterButton>
         </SubmenuFooterBar>
       ) : (
-        <FooterBar>
-          <FooterButton title="Theme" onClick={openThemeMenu}><PaletteIcon /><span style={{fontSize:'0.7rem'}}>Theme</span></FooterButton>
-          <AnimatedFooterButton title="Templates" onClick={openTemplateMenu} style={{ position: 'relative' }}>
+        <FooterBar whiteboard={page === 'whiteboard'} themeName={themeName}>
+          <FooterButton themeName={themeName} title="Theme" onClick={openThemeMenu}><PaletteIcon /><span style={{fontSize:'0.7rem'}}>Theme</span></FooterButton>
+          <FooterButton themeName={themeName} title="Templates" onClick={openTemplateMenu} style={{ position: 'relative' }}>
             <ViewModuleIcon />
             <span style={{fontSize:'0.7rem'}}>Templates</span>
-          </AnimatedFooterButton>
-          <FooterButton title="Number Board"><LooksOneIcon /><span style={{fontSize:'0.7rem'}}>Number Board</span></FooterButton>
-          <FooterButton title="Tools"><DeleteSweepIcon /><span style={{fontSize:'0.7rem'}}>Tools</span></FooterButton>
-          <FooterButton title="Text Recognition"><TextFieldsIcon /><span style={{fontSize:'0.7rem'}}>Text Recog.</span></FooterButton>
-          <FooterButton title="Keyboard Mode"><KeyboardIcon /><span style={{fontSize:'0.7rem'}}>Keyboard</span></FooterButton>
-          <FooterButton title="Help"><HelpOutlineIcon /><span style={{fontSize:'0.7rem'}}>Help</span></FooterButton>
-          <FooterButton title={isLoggedIn ? (isGuest ? 'Log out (guest)' : 'Log out') : 'Log in'} onClick={isLoggedIn ? handleLogout : () => setShowLogin(true)}>
+          </FooterButton>
+          <FooterButton themeName={themeName} title="Tools" onClick={openToolsMenu}>
+            <BuildIcon />
+            <span style={{fontSize:'0.7rem'}}>Tools</span>
+          </FooterButton>
+          <FooterButton themeName={themeName} title="Refresh" onClick={() => window.location.reload()}>
+            <RefreshIcon />
+            <span style={{fontSize:'0.7rem'}}>Refresh</span>
+          </FooterButton>
+          <FooterButton themeName={themeName} title="Vertaal" onClick={() => alert('Vertaalfunctie nog niet geïmplementeerd')}>
+            <TranslateIcon />
+            <span style={{fontSize:'0.7rem'}}>Vertaal</span>
+          </FooterButton>
+          <FooterButton themeName={themeName} title="Text Recognition"><TextFieldsIcon /><span style={{fontSize:'0.7rem'}}>Text Recog.</span></FooterButton>
+          <FooterButton themeName={themeName} title="Keyboard Mode"><KeyboardIcon /><span style={{fontSize:'0.7rem'}}>Keyboard</span></FooterButton>
+          <FooterButton themeName={themeName} title="Help"><HelpOutlineIcon /><span style={{fontSize:'0.7rem'}}>Help</span></FooterButton>
+          <FooterButton themeName={themeName} title={isLoggedIn ? (isGuest ? 'Log out (guest)' : 'Log out') : 'Log in'} onClick={isLoggedIn ? handleLogout : () => setShowLogin(true)}>
             <LoginIcon />
             <span style={{fontSize:'0.7rem'}}>{isLoggedIn ? (isGuest ? 'Log out (guest)' : 'Log out') : 'Log in'}</span>
           </FooterButton>
-          <RevealButton onClick={handleReveal}>REVEAL CORRECT ANSWER</RevealButton>
+          {page !== 'whiteboard' && (
+            page === 'summary' ? (
+            <RevealButton themeName={themeName} onClick={() => setPage('quiz')}>QUIZ CREATION</RevealButton>
+          ) : (
+            <>
+              <RevealButton themeName={themeName} onClick={() => {
+                if ((page as string) !== 'summary') {
+                  if (['quiz', 'reveal', 'result'].includes(page as string)) setLastQuizPage(page as any);
+                  setPage('summary');
+                }
+              }}>SHOW SUMMARY</RevealButton>
+              {page === 'result' && (
+                <RevealButton themeName={themeName} onClick={handleNextQuestion}>NEXT QUESTION</RevealButton>
+              )}
+              {page === 'reveal' && (
+                <RevealButton
+                  themeName={themeName}
+                  onClick={() => {
+                    if (selectedAnswers.length > 0) handleSetCorrectAnswer(selectedAnswers);
+                  }}
+                  id="show-result-btn"
+                  disabled={selectedAnswers.length === 0}
+                >
+                  SHOW RESULT
+                </RevealButton>
+              )}
+              {page !== 'result' && page !== 'reveal' && (
+                <RevealButton
+                  themeName={themeName}
+                  onClick={() => {
+                    if (page === 'quiz') {
+                      if ((window as any).__quizRevealHandler) (window as any).__quizRevealHandler();
+                    }
+                  }}
+                >
+                  {page === 'quiz' ? 'REVEAL CORRECT ANSWERS' : ''}
+                </RevealButton>
+              )}
+            </>
+            )
+          )}
         </FooterBar>
       )}
       {showLogin && (

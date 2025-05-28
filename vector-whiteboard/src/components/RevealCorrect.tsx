@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
-import { QuizQuestion, AnswerData } from '../App';
 import MiniWhiteboard, { MiniWhiteboardHandle } from './MiniWhiteboard';
+import { QuizQuestion, AnswerData } from '../App';
 
 // Snow animation
 const snowfall = keyframes`
@@ -46,7 +46,6 @@ const ViewportContainer = styled.div`
   background: inherit;
   background-attachment: fixed;
 `;
-
 const LargeQuizBox = styled.div<{ themeName: string }>`
   position: relative;
   left: 50%;
@@ -72,7 +71,6 @@ const LargeQuizBox = styled.div<{ themeName: string }>`
   align-items: center;
   z-index: 2;
 `;
-
 const TopLeftBlock = styled.div<{ themeName: string }>`
   position: absolute;
   top: -150px;
@@ -90,7 +88,6 @@ const TopLeftBlock = styled.div<{ themeName: string }>`
   z-index: 1;
   transform: rotate(-125deg);
 `;
-
 const BottomRightBlock = styled.div<{ themeName: string }>`
   position: absolute;
   bottom: -30px;
@@ -108,35 +105,6 @@ const BottomRightBlock = styled.div<{ themeName: string }>`
   z-index: 1;
   transform: rotate(-45deg);
 `;
-
-const Container = styled.div`
-  width: 100vw;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #ffb347 0%, #ff416c 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2vw 0;
-  overflow-x: hidden;
-`;
-
-const QuizBox = styled.div`
-  background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
-  border-radius: 18px;
-  padding: 32px 32px 24px 32px;
-  box-shadow: 0 4px 32px rgba(0,0,0,0.08);
-  min-width: 320px;
-  max-width: 1100px;
-  width: 95vw;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  @media (max-width: 900px) {
-    padding: 18px 4vw 18px 4vw;
-    max-width: 98vw;
-  }
-`;
-
 const Title = styled.h2`
   color: #fff;
   font-size: 2.2rem;
@@ -144,8 +112,8 @@ const Title = styled.h2`
   margin-bottom: 18px;
   letter-spacing: 2px;
   text-align: center;
+  text-shadow: 0 2px 8px #0002;
 `;
-
 const QuestionBoard = styled.div`
   width: 100%;
   margin-bottom: 32px;
@@ -155,7 +123,6 @@ const QuestionBoard = styled.div`
     margin-bottom: 18px;
   }
 `;
-
 const AnswersGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -167,11 +134,23 @@ const AnswersGrid = styled.div`
     gap: 16px 0;
   }
 `;
-
-const AnswerBox = styled.div<{ correct?: boolean }>`
+const AnswerBox = styled.div<{ isSelected?: boolean; themeName: string }>`
   display: flex;
   align-items: center;
-  background: ${({ correct }) => correct ? '#1bbf3a' : '#fff8'};
+  background: ${({ isSelected, themeName }) => {
+    if (isSelected) {
+      return themeName === 'dark' 
+        ? '#4caf50'
+        : themeName === 'christmas'
+        ? '#388e3c'
+        : '#1bbf3a';
+    }
+    return themeName === 'dark'
+      ? '#42424288'
+      : themeName === 'christmas'
+      ? '#388e3c88'
+      : '#fff8';
+  }};
   border-radius: 12px;
   padding: 8px 12px;
   min-height: 90px;
@@ -179,29 +158,63 @@ const AnswerBox = styled.div<{ correct?: boolean }>`
   flex: 1 1 0;
   position: relative;
   box-sizing: border-box;
-  border: 3px solid ${({ correct }) => correct ? '#fff' : 'transparent'};
-  box-shadow: ${({ correct }) => correct ? '0 0 20px #1bbf3a88' : 'none'};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 3px solid ${({ isSelected, themeName }) => 
+    isSelected 
+      ? themeName === 'dark'
+        ? '#4caf50'
+        : themeName === 'christmas'
+        ? '#388e3c'
+        : '#fff'
+      : 'transparent'
+  };
+  box-shadow: ${({ isSelected, themeName }) => 
+    isSelected 
+      ? themeName === 'dark'
+        ? '0 0 20px #4caf5088'
+        : themeName === 'christmas'
+        ? '0 0 20px #388e3c88'
+        : '0 0 20px #1bbf3a88'
+      : 'none'
+  };
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px ${({ themeName }) => 
+      themeName === 'dark'
+        ? '#0006'
+        : themeName === 'christmas'
+        ? '#0006'
+        : '#0001'
+    };
+  }
   @media (max-width: 900px) {
     flex-direction: column;
     min-height: 120px;
     padding: 8px 4px;
   }
 `;
-
-const AnswerNumber = styled.div<{ correct?: boolean }>`
+const AnswerNumber = styled.div<{ isSelected?: boolean; themeName: string }>`
   font-size: 2rem;
   font-weight: bold;
   margin-right: 12px;
-  color: ${({ correct }) => correct ? '#1bbf3a' : '#222'};
+  color: ${({ isSelected, themeName }) => {
+    if (isSelected) {
+      return themeName === 'dark'
+        ? '#4caf50'
+        : themeName === 'christmas'
+        ? '#388e3c'
+        : '#1bbf3a';
+    }
+    return themeName === 'dark'
+      ? '#fff'
+      : themeName === 'christmas'
+      ? '#fff'
+      : '#222';
+  }};
   width: 32px;
   text-align: right;
 `;
-
-const Radio = styled.input`
-  margin-right: 10px;
-  accent-color: #1bbf3a;
-`;
-
 const BackButton = styled.button<{ themeName: string }>`
   background: ${({ themeName }) => 
     themeName === 'dark' 
@@ -222,7 +235,7 @@ const BackButton = styled.button<{ themeName: string }>`
   border: none;
   border-radius: 8px;
   padding: 12px 32px;
-  margin-top: -25px;
+  margin-top: -45px;
   margin-bottom: 8px;
   cursor: pointer;
   box-shadow: 0 2px 8px ${({ themeName }) => 
@@ -251,61 +264,41 @@ const BackButton = styled.button<{ themeName: string }>`
   }
 `;
 
-const NextButton = styled(BackButton)`
-  background: #ff416c;
-  color: #fff;
-  &:hover {
-    background: #ff2b4b;
-  }
-`;
-
-const VoteBox = styled.div<{ themeName: string }>`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: ${({ themeName }) => 
-    themeName === 'dark' 
-      ? '#424242'
-      : themeName === 'christmas'
-      ? '#388e3c'
-      : '#fff'
-  };
-  border-radius: 8px;
-  margin-left: 12px;
-  padding: 4px 6px;
-  box-shadow: 0 1px 4px ${({ themeName }) => 
-    themeName === 'dark' 
-      ? '#0003'
-      : themeName === 'christmas'
-      ? '#0003'
-      : '#0001'
-  };
-`;
-
-const VoteScore = styled.div<{ themeName: string }>`
-  font-size: 1.1rem;
-  font-weight: bold;
-  color: ${({ themeName }) => 
-    themeName === 'dark' 
-      ? '#fff'
-      : themeName === 'christmas'
-      ? '#fff'
-      : '#222'
-  };
-  color: #222;
-  margin: 2px 0;
-`;
-
-interface QuizResultProps {
+interface RevealCorrectProps {
   question: QuizQuestion;
-  correctIds: number[];
+  onSelectCorrect: (answerIds: number[]) => void;
   onBack: () => void;
-  onNext: () => void;
+  onShowResult: (selected: number[]) => void;
+  onSelectedAnswersChange?: (selected: number[]) => void;
   themeName: string;
 }
 
-const QuizResult: React.FC<QuizResultProps> = ({ question, correctIds, onBack, onNext, themeName }) => {
+const RevealCorrect: React.FC<RevealCorrectProps> = ({ question, onSelectCorrect, onBack, onShowResult, onSelectedAnswersChange, themeName }) => {
+  const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
+
+  const toggleAnswer = (answerId: number) => {
+    setSelectedAnswers(prev => {
+      const next = prev.includes(answerId)
+        ? prev.filter(id => id !== answerId)
+        : [...prev, answerId];
+      if (onSelectedAnswersChange) onSelectedAnswersChange(next);
+      return next;
+    });
+  };
+
+  // Sync selectie naar App
+  React.useEffect(() => {
+    if (onSelectedAnswersChange) onSelectedAnswersChange(selectedAnswers);
+  }, [selectedAnswers, onSelectedAnswersChange]);
+
+  // Handler voor de knop
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).__quizRevealHandler = () => onShowResult(selectedAnswers);
+      return () => { delete (window as any).__quizRevealHandler; };
+    }
+  }, [selectedAnswers, onShowResult]);
+
   // Generate snowflakes for Christmas theme
   const snowflakes = themeName === 'christmas' ? Array.from({ length: 50 }, (_, i) => ({
     id: i,
@@ -313,13 +306,6 @@ const QuizResult: React.FC<QuizResultProps> = ({ question, correctIds, onBack, o
     left: Math.random() * 100,
     delay: Math.random() * 5
   })) : [];
-
-  // Pie chart data
-  const pieData = question.answers.map((answer, i) => ({
-    label: `${i + 1}`,
-    value: answer.votes,
-    isCorrect: correctIds.includes(answer.id)
-  }));
 
   return (
     <ViewportContainer>
@@ -355,7 +341,7 @@ const QuizResult: React.FC<QuizResultProps> = ({ question, correctIds, onBack, o
         left: 0,
         right: 0,
       }}>
-        QUIZ RESULT
+        SELECT CORRECT ANSWERS
       </div>
       <LargeQuizBox
         themeName={themeName}
@@ -371,26 +357,28 @@ const QuizResult: React.FC<QuizResultProps> = ({ question, correctIds, onBack, o
           <MiniWhiteboard initialPaths={question.questionDrawing} width={undefined} height={220} style={{ width: '100%' }} />
         </QuestionBoard>
         <AnswersGrid>
-          {question.answers
-            .filter(answer => correctIds.includes(answer.id))
-            .map((answer, i) => (
-              <AnswerBox key={answer.id} correct={true}>
-                <AnswerNumber correct={true}>{question.answers.findIndex(a => a.id === answer.id) + 1}.</AnswerNumber>
-                <MiniWhiteboard
-                  initialPaths={answer.drawing}
-                  width={undefined}
-                  height={75}
-                  style={{ flex: 1, minWidth: 0, maxWidth: 'calc(100% - 60px)' }}
-                />
-                <VoteBox themeName={themeName}>
-                  <VoteScore themeName={themeName}>{answer.votes}</VoteScore>
-                </VoteBox>
-              </AnswerBox>
-            ))}
+          {question.answers.map((answer, i) => (
+            <AnswerBox
+              key={answer.id}
+              isSelected={selectedAnswers.includes(answer.id)}
+              themeName={themeName}
+              onClick={() => toggleAnswer(answer.id)}
+            >
+              <AnswerNumber 
+                isSelected={selectedAnswers.includes(answer.id)}
+                themeName={themeName}
+              >
+                {i + 1}.
+              </AnswerNumber>
+              <MiniWhiteboard
+                initialPaths={answer.drawing}
+                width={undefined}
+                height={75}
+                style={{ flex: 1, minWidth: 0, maxWidth: 'calc(100% - 60px)' }}
+              />
+            </AnswerBox>
+          ))}
         </AnswersGrid>
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: 32 }}>
-          <PieChart data={pieData} />
-        </div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 24, width: '100%', marginTop: 32 }}>
           <BackButton themeName={themeName} onClick={onBack}>Back</BackButton>
         </div>
@@ -399,58 +387,4 @@ const QuizResult: React.FC<QuizResultProps> = ({ question, correctIds, onBack, o
   );
 };
 
-// Pie chart component
-export const PieChart: React.FC<{ data: { label: string; value: number; isCorrect?: boolean }[] }> = ({ data }) => {
-  const size = 200;
-  const radius = size / 2;
-  const total = data.reduce((sum, d) => sum + d.value, 0) || 1;
-  let angle = 0;
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}
-      style={{ filter: 'drop-shadow(0 4px 16px #0003)', borderRadius: '50%', background: 'rgba(255,255,255,0.01)', animation: 'pieIn 0.7s cubic-bezier(.68,-0.55,.27,1.55)' }}>
-      <style>{`
-        @keyframes pieIn {
-          0% { transform: scale(0.7); opacity: 0; }
-          100% { transform: scale(1); opacity: 1; }
-        }
-      `}</style>
-      {data.map((d, i) => {
-        const a0 = angle;
-        const a1 = angle + (d.value / total) * Math.PI * 2;
-        const x0 = radius + radius * Math.cos(a0 - Math.PI / 2);
-        const y0 = radius + radius * Math.sin(a0 - Math.PI / 2);
-        const x1 = radius + radius * Math.cos(a1 - Math.PI / 2);
-        const y1 = radius + radius * Math.sin(a1 - Math.PI / 2);
-        const largeArc = a1 - a0 > Math.PI ? 1 : 0;
-        angle = a1;
-        return (
-          <g key={i}>
-            <path
-              fill={d.isCorrect ? '#1bbf3a' : '#E20248'}
-              stroke="#fff"
-              strokeWidth={2}
-              d={`M${radius},${radius} L${x0},${y0} A${radius},${radius} 0 ${largeArc} 1 ${x1},${y1} Z`}
-            />
-            {/* Label in het midden van het segment */}
-            {d.value > 0 && (
-              <text
-                x={radius + (radius * 0.6) * Math.cos((a0 + a1) / 2 - Math.PI / 2)}
-                y={radius + (radius * 0.6) * Math.sin((a0 + a1) / 2 - Math.PI / 2)}
-                fill="#fff"
-                fontSize={22}
-                fontWeight={700}
-                textAnchor="middle"
-                alignmentBaseline="middle"
-                pointerEvents="none"
-              >
-                {d.label}
-              </text>
-            )}
-          </g>
-        );
-      })}
-    </svg>
-  );
-};
-
-export default QuizResult; 
+export default RevealCorrect; 

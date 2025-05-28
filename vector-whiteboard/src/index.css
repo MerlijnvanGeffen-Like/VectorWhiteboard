@@ -9,7 +9,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #f0f2f5;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
 }
 
 code {
@@ -23,4 +23,7 @@ code {
 
 #root {
   height: 100vh;
+  min-height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
 } 
