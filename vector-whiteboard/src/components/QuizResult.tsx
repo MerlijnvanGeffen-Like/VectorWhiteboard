@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { QuizQuestion, AnswerData } from '../App';
 import MiniWhiteboard, { MiniWhiteboardHandle } from './MiniWhiteboard';
+import App from '../App';
 
 // Snow animation
 const snowfall = keyframes`
@@ -38,12 +39,18 @@ const SnowContainer = styled.div`
   z-index: 1000;
 `;
 
-const ViewportContainer = styled.div`
+const ViewportContainer = styled.div<{ themeName: string }>`
   width: 100vw;
   height: 100vh;
   overflow: hidden;
   position: relative;
-  background: inherit;
+  background: ${({ themeName }) => 
+    themeName === 'dark' 
+      ? 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
+      : themeName === 'christmas'
+      ? 'linear-gradient(135deg, #2e7d32 100%)'
+      : 'linear-gradient(135deg, #FFE3B2 0%, #660020 100%)'
+  };
   background-attachment: fixed;
 `;
 
@@ -61,7 +68,7 @@ const LargeQuizBox = styled.div<{ themeName: string }>`
     themeName === 'dark' 
       ? 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%)'
       : themeName === 'christmas'
-      ? 'linear-gradient(135deg, #c62828 0%, #388e3c 100%)'
+      ? 'linear-gradient(135deg, #c62828 100%)'
       : 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)'
   };
   border-radius: 18px;
@@ -83,7 +90,7 @@ const TopLeftBlock = styled.div<{ themeName: string }>`
     themeName === 'dark' 
       ? 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%)'
       : themeName === 'christmas'
-      ? 'linear-gradient(135deg, #c62828 0%, #388e3c 100%)'
+      ? 'linear-gradient(135deg, #c62828 100%)'
       : 'linear-gradient(135deg, #E20248 0%, #F6A71B 100%)'
   };
   border-radius: 100px;
@@ -101,7 +108,7 @@ const BottomRightBlock = styled.div<{ themeName: string }>`
     themeName === 'dark' 
       ? 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%)'
       : themeName === 'christmas'
-      ? 'linear-gradient(135deg, #c62828 0%, #388e3c 100%)'
+      ? 'linear-gradient(135deg, #c62828 100%)'
       : 'linear-gradient(135deg, #E20248 0%, #F6A71B 100%)'
   };
   border-radius: 100px;
@@ -168,10 +175,23 @@ const AnswersGrid = styled.div`
   }
 `;
 
-const AnswerBox = styled.div<{ correct?: boolean }>`
+const AnswerBox = styled.div<{ correct?: boolean; themeName: string }>`
   display: flex;
   align-items: center;
-  background: ${({ correct }) => correct ? '#1bbf3a' : '#fff8'};
+  background: ${({ correct, themeName }) => {
+    if (correct) {
+      return themeName === 'dark'
+        ? '#4caf50'
+        : themeName === 'christmas'
+        ? '#fff'
+        : '#1bbf3a';
+    }
+    return themeName === 'dark'
+      ? '#42424288'
+      : themeName === 'christmas'
+      ? '#fff8'
+      : '#fff8';
+  }};
   border-radius: 12px;
   padding: 8px 12px;
   min-height: 90px;
@@ -179,8 +199,24 @@ const AnswerBox = styled.div<{ correct?: boolean }>`
   flex: 1 1 0;
   position: relative;
   box-sizing: border-box;
-  border: 3px solid ${({ correct }) => correct ? '#fff' : 'transparent'};
-  box-shadow: ${({ correct }) => correct ? '0 0 20px #1bbf3a88' : 'none'};
+  border: 3px solid ${({ correct, themeName }) => 
+    correct 
+      ? themeName === 'dark'
+        ? '#4caf50'
+        : themeName === 'christmas'
+        ? '#388e3c'
+        : '#fff'
+      : 'transparent'
+  };
+  box-shadow: ${({ correct, themeName }) => 
+    correct 
+      ? themeName === 'dark'
+        ? '0 0 20px #4caf5088'
+        : themeName === 'christmas'
+        ? '0 0 20px #388e3c88'
+        : '0 0 20px #1bbf3a88'
+      : 'none'
+  };
   @media (max-width: 900px) {
     flex-direction: column;
     min-height: 120px;
@@ -188,11 +224,14 @@ const AnswerBox = styled.div<{ correct?: boolean }>`
   }
 `;
 
-const AnswerNumber = styled.div<{ correct?: boolean }>`
+const AnswerNumber = styled.div<{ correct?: boolean; themeName: string }>`
   font-size: 2rem;
   font-weight: bold;
   margin-right: 12px;
-  color: ${({ correct }) => correct ? '#1bbf3a' : '#222'};
+  color: ${({ themeName }) =>
+    themeName === 'dark'
+      ? '#fff'
+      : '#222'};
   width: 32px;
   text-align: right;
 `;
@@ -293,7 +332,6 @@ const VoteScore = styled.div<{ themeName: string }>`
       ? '#fff'
       : '#222'
   };
-  color: #222;
   margin: 2px 0;
 `;
 
@@ -303,9 +341,16 @@ interface QuizResultProps {
   onBack: () => void;
   onNext: () => void;
   themeName: string;
+  t: (key: string) => string;
 }
 
-const QuizResult: React.FC<QuizResultProps> = ({ question, correctIds, onBack, onNext, themeName }) => {
+const THEME_COLORS: Record<string, string[]> = {
+  dark: ['#388e3c', '#1976d2', '#c62828', '#f6a71b', '#ff416c', '#ff4b2b', '#2d2d2d', '#e20248'],
+  christmas: ['#c62828', '#388e3c', '#fff176', '#ffb300', '#fff', '#43a047', '#e53935', '#fbc02d'],
+  default: ['#ff416c', '#ff4b2b', '#1bbf3a', '#388e3c', '#1976d2', '#c62828', '#f6a71b', '#2d2d2d', '#e20248', '#43a047', '#ffa500', '#800080', '#008080', '#FF69B4']
+};
+
+const QuizResult: React.FC<QuizResultProps> = ({ question, correctIds, onBack, onNext, themeName, t }) => {
   // Generate snowflakes for Christmas theme
   const snowflakes = themeName === 'christmas' ? Array.from({ length: 50 }, (_, i) => ({
     id: i,
@@ -322,7 +367,7 @@ const QuizResult: React.FC<QuizResultProps> = ({ question, correctIds, onBack, o
   }));
 
   return (
-    <ViewportContainer>
+    <ViewportContainer themeName={themeName}>
       {themeName === 'christmas' && (
         <SnowContainer>
           {snowflakes.map(flake => (
@@ -355,7 +400,7 @@ const QuizResult: React.FC<QuizResultProps> = ({ question, correctIds, onBack, o
         left: 0,
         right: 0,
       }}>
-        QUIZ RESULT
+        {t('quiz_result')}
       </div>
       <LargeQuizBox
         themeName={themeName}
@@ -371,11 +416,14 @@ const QuizResult: React.FC<QuizResultProps> = ({ question, correctIds, onBack, o
           <MiniWhiteboard initialPaths={question.questionDrawing} width={undefined} height={220} style={{ width: '100%' }} />
         </QuestionBoard>
         <AnswersGrid>
-          {question.answers
-            .filter(answer => correctIds.includes(answer.id))
-            .map((answer, i) => (
-              <AnswerBox key={answer.id} correct={true}>
-                <AnswerNumber correct={true}>{question.answers.findIndex(a => a.id === answer.id) + 1}.</AnswerNumber>
+          {question.answers.filter(a => a.isCorrect).length === 0 ? (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#E20248', fontWeight: 600, fontSize: '1.2rem', padding: '24px 0' }}>
+              Geen juiste antwoorden gemarkeerd.
+            </div>
+          ) : (
+            question.answers.filter(a => a.isCorrect).map((answer, i) => (
+              <AnswerBox key={answer.id} correct={correctIds.includes(answer.id)} themeName={themeName}>
+                <AnswerNumber correct={correctIds.includes(answer.id)} themeName={themeName}>{i + 1}.</AnswerNumber>
                 <MiniWhiteboard
                   initialPaths={answer.drawing}
                   width={undefined}
@@ -383,16 +431,17 @@ const QuizResult: React.FC<QuizResultProps> = ({ question, correctIds, onBack, o
                   style={{ flex: 1, minWidth: 0, maxWidth: 'calc(100% - 60px)' }}
                 />
                 <VoteBox themeName={themeName}>
-                  <VoteScore themeName={themeName}>{answer.votes}</VoteScore>
+                  <VoteScore themeName={themeName}>{answer.votes} votes</VoteScore>
                 </VoteBox>
               </AnswerBox>
-            ))}
+            ))
+          )}
         </AnswersGrid>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: 32 }}>
-          <PieChart data={pieData} />
+          <PieChart data={pieData} themeName={themeName} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 24, width: '100%', marginTop: 32 }}>
-          <BackButton themeName={themeName} onClick={onBack}>Back</BackButton>
+          <BackButton themeName={themeName} onClick={onBack}>{t('back')}</BackButton>
         </div>
       </LargeQuizBox>
     </ViewportContainer>
@@ -400,14 +449,21 @@ const QuizResult: React.FC<QuizResultProps> = ({ question, correctIds, onBack, o
 };
 
 // Pie chart component
-export const PieChart: React.FC<{ data: { label: string; value: number; isCorrect?: boolean }[] }> = ({ data }) => {
+export const PieChart: React.FC<{ data: { label: string; value: number; isCorrect?: boolean }[]; themeName?: string }> = ({ data, themeName = 'default' }) => {
   const size = 200;
   const radius = size / 2;
   const total = data.reduce((sum, d) => sum + d.value, 0) || 1;
   let angle = 0;
+  const colors = THEME_COLORS[themeName] || THEME_COLORS['default'];
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}
-      style={{ filter: 'drop-shadow(0 4px 16px #0003)', borderRadius: '50%', background: 'rgba(255,255,255,0.01)', animation: 'pieIn 0.7s cubic-bezier(.68,-0.55,.27,1.55)' }}>
+      style={{
+        filter: themeName === 'dark' ? 'drop-shadow(0 4px 16px #0008)' : themeName === 'christmas' ? 'drop-shadow(0 4px 16px #388e3c88)' : 'drop-shadow(0 4px 16px #ff416c55)',
+        borderRadius: '50%',
+        background: themeName === 'dark' ? '#222' : themeName === 'christmas' ? '#fff8' : '#fff',
+        animation: 'pieIn 0.7s cubic-bezier(.68,-0.55,.27,1.55)'
+      }}
+    >
       <style>{`
         @keyframes pieIn {
           0% { transform: scale(0.7); opacity: 0; }
@@ -426,17 +482,16 @@ export const PieChart: React.FC<{ data: { label: string; value: number; isCorrec
         return (
           <g key={i}>
             <path
-              fill={d.isCorrect ? '#1bbf3a' : '#E20248'}
+              fill={d.isCorrect ? '#1bbf3a' : colors[i % colors.length]}
               stroke="#fff"
               strokeWidth={2}
               d={`M${radius},${radius} L${x0},${y0} A${radius},${radius} 0 ${largeArc} 1 ${x1},${y1} Z`}
             />
-            {/* Label in het midden van het segment */}
             {d.value > 0 && (
               <text
                 x={radius + (radius * 0.6) * Math.cos((a0 + a1) / 2 - Math.PI / 2)}
                 y={radius + (radius * 0.6) * Math.sin((a0 + a1) / 2 - Math.PI / 2)}
-                fill="#fff"
+                fill={themeName === 'dark' ? '#fff' : '#222'}
                 fontSize={22}
                 fontWeight={700}
                 textAnchor="middle"
@@ -450,6 +505,70 @@ export const PieChart: React.FC<{ data: { label: string; value: number; isCorrec
         );
       })}
     </svg>
+  );
+};
+
+const BarChart: React.FC<{ data: { label: string; value: number; id?: number }[]; themeName: string; correctIds?: number[] }> = ({ data, themeName, correctIds }) => {
+  const max = Math.max(...data.map(d => d.value), 1);
+  const colors = THEME_COLORS[themeName] || THEME_COLORS['default'];
+  return (
+    <div style={{
+      width: 400,
+      maxWidth: '90vw',
+      margin: '0 auto',
+      background: themeName === 'dark' ? '#222' : themeName === 'christmas' ? '#fff8' : '#fff',
+      borderRadius: 16,
+      boxShadow: themeName === 'dark'
+        ? '0 2px 12px #0008'
+        : themeName === 'christmas'
+        ? '0 2px 12px #c6282822'
+        : '0 2px 12px #ff416c22',
+      padding: 24
+    }}>
+      {data.map((d, i) => {
+        let barColor = colors[i % colors.length];
+        if (correctIds) {
+          barColor = correctIds.includes(d.id ?? i) ? '#1bbf3a' : '#E20248';
+        }
+        return (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{
+              width: 32,
+              textAlign: 'right',
+              fontWeight: 700,
+              color: barColor,
+              marginRight: 12,
+              fontSize: 18
+            }}>{d.label}</div>
+            <div style={{
+              flex: 1,
+              background: themeName === 'dark' ? '#333' : '#eee',
+              borderRadius: 8,
+              height: 32,
+              position: 'relative',
+              overflow: 'hidden',
+              marginRight: 8
+            }}>
+              <div style={{
+                width: `${(d.value / max) * 100}%`,
+                background: barColor,
+                height: '100%',
+                borderRadius: 8,
+                transition: 'width 0.5s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: 18,
+                paddingRight: 16,
+                boxShadow: '0 2px 8px #0002'
+              }}>{d.value}</div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 };
 

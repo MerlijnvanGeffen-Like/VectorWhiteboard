@@ -1,18 +1,16 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useImperativeHandle, forwardRef, ForwardRefRenderFunction } from 'react';
 import styled, { keyframes } from 'styled-components';
 import MiniWhiteboard from './MiniWhiteboard';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import { AnswerData, QuizQuestion } from '../App';
+import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { Button } from '@mui/material';
 
 // Snow animation
 const snowfall = keyframes`
-  0% {
-    transform: translateY(-10px) rotate(0deg);
-  }
-  100% {
-    transform: translateY(100vh) rotate(360deg);
-  }
+  0% { transform: translateY(-10px) rotate(0deg); }
+  100% { transform: translateY(100vh) rotate(360deg); }
 `;
 
 const Snowflake = styled.div<{ size: number; left: number; delay: number }>`
@@ -75,7 +73,6 @@ const LargeQuizBox = styled.div<{ themeName: string }>`
   z-index: 2;
 `;
 
-// Decoratieve blokken
 const TopLeftBlock = styled.div<{ themeName: string }>`
   position: absolute;
   top: -150px;
@@ -142,7 +139,7 @@ const AnswersGrid = styled.div`
   }
 `;
 
-const AnswerBox = styled.div`
+const AnswerBox = styled.div<{ themeName: string }>`
   display: flex;
   align-items: center;
   background: #fff8;
@@ -167,6 +164,24 @@ const AnswerNumber = styled.div`
   color: #222;
   width: 32px;
   text-align: right;
+`;
+
+const OptionInput = styled.input`
+  flex: 1;
+  font-size: 1.2rem;
+  border: none;
+  background: #fff;
+  outline: none;
+  font-weight: bold;
+  color: #222;
+  margin-right: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px #0001;
+  &::placeholder {
+    color: #bbb;
+    opacity: 1;
+  }
 `;
 
 const VoteBox = styled.div`
@@ -298,92 +313,90 @@ const AddButton = styled.button<{ themeName: string }>`
   }
 `;
 
-interface QuizCreationProps {
-  onSaveQuestion: (q: QuizQuestion) => void;
-  onReveal?: () => void;
-  currentColor?: string;
-  currentWidth?: number;
-  clearKey?: number;
-  mode?: 'draw' | 'eraser';
-  themeName: string;
-  t: (key: string) => string;
+type PollOption = { id: number; text: string; votes: number; drawing: any };
+
+interface PollCreationProps {
+  themeName?: string;
+  t?: (key: string) => string;
+  onSave?: (poll: any) => void;
+  question: string;
+  setQuestion: (q: string) => void;
+  pageTitle?: string;
+  saveLabel?: string;
+  initialOptions?: PollOption[]; // optioneel
 }
 
-const QuizCreation: React.FC<QuizCreationProps> = ({ onSaveQuestion, onReveal, currentColor = '#222', currentWidth = 4, clearKey, mode = 'draw', themeName, t }) => {
-  const [answers, setAnswers] = useState<AnswerData[]>([
-    { id: 0, votes: 0, drawing: null },
-    { id: 1, votes: 0, drawing: null },
-  ]);
-  const [questionIdx, setQuestionIdx] = useState(1);
-  const questionRef = useRef<any>(null);
-  const answerRefs = useRef<any[]>([]);
+export interface PollCreationHandle {
+  savePoll: () => void;
+}
 
-  const addAnswer = () => {
-    setAnswers(prev => [...prev, { id: prev.length ? prev[prev.length - 1].id + 1 : 0, votes: 0, drawing: null }]);
-  };
+const PollCreation: React.ForwardRefRenderFunction<PollCreationHandle, PollCreationProps> = (props, ref) => {
+  const {
+    themeName = 'default',
+    t = (x: string) => x,
+    onSave,
+    question,
+    setQuestion,
+    pageTitle,
+    saveLabel,
+    initialOptions
+  } = props;
+  const [options, setOptions] = React.useState<PollOption[]>(
+    initialOptions && initialOptions.length > 0
+      ? initialOptions
+      : [
+          { id: 0, text: '', votes: 0, drawing: null },
+          { id: 1, text: '', votes: 0, drawing: null }
+        ]
+  );
+  const whiteboardRef = useRef<any>(null);
+  const optionRefs = useRef<{ [id: number]: any }>({});
 
-  const removeAnswer = (id: number) => {
-    setAnswers(prev => {
-      const idx = prev.findIndex(a => a.id === id);
-      if (idx === -1) return prev;
-      // Verwijder de ref op dezelfde index
-      answerRefs.current.splice(idx, 1);
-      return prev.filter((a) => a.id !== id);
-    });
-  };
-
-  const vote = (id: number, delta: number) => {
-    setAnswers(prev => prev.map(a => a.id === id ? { ...a, votes: a.votes + delta } : a));
-  };
-
-  const nextQuestion = () => {
-    // Verzamel tekeningen
-    const questionDrawing = questionRef.current?.getPaths ? questionRef.current.getPaths() : null;
-    const answerDrawings = answerRefs.current.map(ref => ref?.getPaths ? ref.getPaths() : null);
-    const answersWithDrawings = answers.map((a, i) => ({ ...a, drawing: answerDrawings[i] }));
-    onSaveQuestion({ questionDrawing, answers: answersWithDrawings });
-    setAnswers([
-      { id: 0, votes: 0, drawing: null },
-      { id: 1, votes: 0, drawing: null },
-    ]);
-    setQuestionIdx(idx => idx + 1);
-    // Clear all whiteboards
-    answerRefs.current.forEach(ref => ref?.clear && ref.clear());
-    if (questionRef.current?.clear) questionRef.current.clear();
-    answerRefs.current = [];
-  };
-
-  // Max 8 antwoorden
-  const canAddAnswer = answers.length < 8;
-
-  // Verzamel en save de vraag + antwoorden
-  const handleReveal = () => {
-    const questionDrawing = questionRef.current?.getPaths ? questionRef.current.getPaths() : null;
-    const answerDrawings = answerRefs.current.map(ref => ref?.getPaths ? ref.getPaths() : null);
-    const answersWithDrawings = answers.map((a, i) => ({ ...a, drawing: answerDrawings[i] }));
-    onSaveQuestion({ questionDrawing, answers: answersWithDrawings });
-  };
-
-  // Koppel onReveal prop aan handleReveal
-  React.useEffect(() => {
-    if (!onReveal) return;
-    (window as any).__quizRevealHandler = handleReveal;
-    return () => { delete (window as any).__quizRevealHandler; };
-  }, [answers, onSaveQuestion]);
-
-  React.useEffect(() => {
-    if (clearKey === undefined) return;
-    if (questionRef.current?.clear) questionRef.current.clear();
-    answerRefs.current.forEach(ref => ref?.clear && ref.clear());
-  }, [clearKey]);
-
-  // Generate snowflakes for Christmas theme
+  // Snowflakes
   const snowflakes = themeName === 'christmas' ? Array.from({ length: 50 }, (_, i) => ({
     id: i,
     size: Math.random() * 4 + 2,
     left: Math.random() * 100,
     delay: Math.random() * 5
   })) : [];
+
+  const handleAddOption = () => {
+    setOptions([
+      ...options,
+      { id: options.length ? options[options.length - 1].id + 1 : 0, text: '', votes: 0, drawing: null }
+    ]);
+  };
+
+  const handleRemoveOption = (id: number) => {
+    if (options.length <= 2) return;
+    delete optionRefs.current[id];
+    setOptions(options.filter(opt => opt.id !== id));
+  };
+
+  const handleOptionChange = (id: number, value: string) => {
+    setOptions(options.map(opt => opt.id === id ? { ...opt, text: value } : opt));
+  };
+
+  const handleVote = (id: number, delta: number) => {
+    setOptions(options.map(opt => opt.id === id ? { ...opt, votes: Math.max(0, opt.votes + delta) } : opt));
+  };
+
+  useImperativeHandle(ref, () => ({
+    savePoll: () => {
+      const drawing = whiteboardRef.current?.getPaths ? whiteboardRef.current.getPaths() : [];
+      const optionsWithDrawings = options.map(opt => ({
+        ...opt,
+        drawing: optionRefs.current[opt.id]?.getPaths ? optionRefs.current[opt.id].getPaths() : [],
+        text: opt.text || `Option ${opt.id + 1}`
+      }));
+      if (onSave) onSave({
+        question: Array.isArray(drawing) ? drawing : [],
+        options: optionsWithDrawings
+      });
+    }
+  }), [options, onSave]);
+
+  const canAddOption = options.length < 8;
 
   return (
     <ViewportContainer>
@@ -401,7 +414,6 @@ const QuizCreation: React.FC<QuizCreationProps> = ({ onSaveQuestion, onReveal, c
       )}
       <TopLeftBlock themeName={themeName} />
       <BottomRightBlock themeName={themeName} />
-      {/* Titel buiten het roze vak */}
       <div style={{
         zIndex: 3,
         color: 'white',
@@ -420,46 +432,43 @@ const QuizCreation: React.FC<QuizCreationProps> = ({ onSaveQuestion, onReveal, c
         left: 0,
         right: 0,
       }}>
-        {t && t('quiz_creation')}
+        {pageTitle}
       </div>
-      <LargeQuizBox
-        themeName={themeName}
-        style={{
-          marginTop: 64,
-          position: 'relative',
-          top: 0,
-          left: '50%',
-          transform: 'translate(-50%, 0)',
-        }}
-      >
+      <LargeQuizBox themeName={themeName} style={{ marginTop: 64, position: 'relative', top: 0, left: '50%', transform: 'translate(-50%, 0)' }}>
         <QuestionBoard>
-          <MiniWhiteboard ref={questionRef} width={undefined} height={220} style={{ width: '100%' }} color={currentColor} lineWidth={currentWidth} mode={mode} />
+          <MiniWhiteboard ref={whiteboardRef} width={undefined} height={220} style={{ width: '100%' }} initialPaths={Array.isArray(question) ? question : []} />
         </QuestionBoard>
         <AnswersGrid>
-          {answers.map((answer, i) => (
-            <AnswerBox key={answer.id}>
-              <AnswerNumber>{i + 1}.</AnswerNumber>
-              <MiniWhiteboard ref={el => answerRefs.current[i] = el} width={undefined} height={75} style={{ flex: 1, minWidth: 0, maxWidth: 'calc(100% - 60px)' }} color={currentColor} lineWidth={currentWidth} mode={mode} />
+          {options.map((opt, idx) => (
+            <AnswerBox key={opt.id} themeName={themeName}>
+              <AnswerNumber>{idx + 1}.</AnswerNumber>
+              <MiniWhiteboard
+                ref={el => { if (el) optionRefs.current[opt.id] = el; else delete optionRefs.current[opt.id]; }}
+                width={undefined}
+                height={75}
+                style={{ flex: 1, minWidth: 0, maxWidth: 'calc(100% - 60px)' }}
+                initialPaths={opt.drawing || []}
+              />
               <VoteBox>
-                <VoteBtn up themeName={themeName} onClick={() => vote(answer.id, 1)} title="Upvote">
+                <VoteBtn up themeName={themeName} onClick={() => handleVote(opt.id, 1)} title="Upvote">
                   <ArrowUpwardIcon fontSize="small" />
                 </VoteBtn>
-                <VoteScore themeName={themeName}>{answer.votes}</VoteScore>
-                <VoteBtn themeName={themeName} onClick={() => vote(answer.id, -1)} title="Downvote">
+                <VoteScore themeName={themeName}>{opt.votes}</VoteScore>
+                <VoteBtn themeName={themeName} onClick={() => handleVote(opt.id, -1)} title="Downvote">
                   <ArrowDownwardIcon fontSize="small" />
                 </VoteBtn>
               </VoteBox>
-              {i === answers.length - 1 && (
-                <RemoveBtn themeName={themeName} title="Verwijder antwoord" onClick={() => removeAnswer(answer.id)}><span>-</span></RemoveBtn>
+              {options.length > 2 && idx === options.length - 1 && (
+                <RemoveBtn themeName={themeName} title="Verwijder optie" onClick={() => handleRemoveOption(opt.id)}><span>-</span></RemoveBtn>
               )}
             </AnswerBox>
           ))}
-          {answers.length % 2 === 1 && <div />} {/* For grid alignment */}
-          {canAddAnswer && <AddButton themeName={themeName} onClick={addAnswer}>+</AddButton>}
+          {options.length % 2 === 1 && <div />} {/* For grid alignment */}
+          {canAddOption && <AddButton themeName={themeName} onClick={handleAddOption}>+</AddButton>}
         </AnswersGrid>
       </LargeQuizBox>
     </ViewportContainer>
   );
 };
 
-export default QuizCreation; 
+export default React.forwardRef(PollCreation); 

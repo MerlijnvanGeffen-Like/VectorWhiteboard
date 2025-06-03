@@ -38,12 +38,18 @@ const SnowContainer = styled.div`
   z-index: 1000;
 `;
 
-const ViewportContainer = styled.div`
+const ViewportContainer = styled.div<{ themeName: string }>`
   width: 100vw;
   height: 100vh;
   overflow: hidden;
   position: relative;
-  background: inherit;
+  background: ${({ themeName }) => 
+    themeName === 'dark' 
+      ? 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
+      : themeName === 'christmas'
+      ? 'linear-gradient(135deg, #2e7d32 100%)'
+      : 'linear-gradient(135deg, #FFE3B2 0%, #660020 100%)'
+  };
   background-attachment: fixed;
 `;
 const LargeQuizBox = styled.div<{ themeName: string }>`
@@ -60,7 +66,7 @@ const LargeQuizBox = styled.div<{ themeName: string }>`
     themeName === 'dark' 
       ? 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%)'
       : themeName === 'christmas'
-      ? 'linear-gradient(135deg, #c62828 0%, #388e3c 100%)'
+      ? 'linear-gradient(135deg, #c62828 100%)'
       : 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)'
   };
   border-radius: 18px;
@@ -81,7 +87,7 @@ const TopLeftBlock = styled.div<{ themeName: string }>`
     themeName === 'dark' 
       ? 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%)'
       : themeName === 'christmas'
-      ? 'linear-gradient(135deg, #c62828 0%, #388e3c 100%)'
+      ? 'linear-gradient(135deg, #c62828 100%)'
       : 'linear-gradient(135deg, #E20248 0%, #F6A71B 100%)'
   };
   border-radius: 100px;
@@ -98,7 +104,7 @@ const BottomRightBlock = styled.div<{ themeName: string }>`
     themeName === 'dark' 
       ? 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%)'
       : themeName === 'christmas'
-      ? 'linear-gradient(135deg, #c62828 0%, #388e3c 100%)'
+      ? 'linear-gradient(135deg, #c62828 100%)'
       : 'linear-gradient(135deg, #E20248 0%, #F6A71B 100%)'
   };
   border-radius: 100px;
@@ -142,13 +148,13 @@ const AnswerBox = styled.div<{ isSelected?: boolean; themeName: string }>`
       return themeName === 'dark' 
         ? '#4caf50'
         : themeName === 'christmas'
-        ? '#388e3c'
+        ? '#fff'
         : '#1bbf3a';
     }
     return themeName === 'dark'
       ? '#42424288'
       : themeName === 'christmas'
-      ? '#388e3c88'
+      ? '#fff8'
       : '#fff8';
   }};
   border-radius: 12px;
@@ -184,7 +190,7 @@ const AnswerBox = styled.div<{ isSelected?: boolean; themeName: string }>`
       themeName === 'dark'
         ? '#0006'
         : themeName === 'christmas'
-        ? '#0006'
+        ? '#0001'
         : '#0001'
     };
   }
@@ -198,20 +204,10 @@ const AnswerNumber = styled.div<{ isSelected?: boolean; themeName: string }>`
   font-size: 2rem;
   font-weight: bold;
   margin-right: 12px;
-  color: ${({ isSelected, themeName }) => {
-    if (isSelected) {
-      return themeName === 'dark'
-        ? '#4caf50'
-        : themeName === 'christmas'
-        ? '#388e3c'
-        : '#1bbf3a';
-    }
-    return themeName === 'dark'
+  color: ${({ themeName }) =>
+    themeName === 'dark'
       ? '#fff'
-      : themeName === 'christmas'
-      ? '#fff'
-      : '#222';
-  }};
+      : '#222'};
   width: 32px;
   text-align: right;
 `;
@@ -271,9 +267,10 @@ interface RevealCorrectProps {
   onShowResult: (selected: number[]) => void;
   onSelectedAnswersChange?: (selected: number[]) => void;
   themeName: string;
+  t: (key: string) => string;
 }
 
-const RevealCorrect: React.FC<RevealCorrectProps> = ({ question, onSelectCorrect, onBack, onShowResult, onSelectedAnswersChange, themeName }) => {
+const RevealCorrect: React.FC<RevealCorrectProps> = ({ question, onSelectCorrect, onBack, onShowResult, onSelectedAnswersChange, themeName, t }) => {
   const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
 
   const toggleAnswer = (answerId: number) => {
@@ -308,7 +305,7 @@ const RevealCorrect: React.FC<RevealCorrectProps> = ({ question, onSelectCorrect
   })) : [];
 
   return (
-    <ViewportContainer>
+    <ViewportContainer themeName={themeName}>
       {themeName === 'christmas' && (
         <SnowContainer>
           {snowflakes.map(flake => (
@@ -341,7 +338,7 @@ const RevealCorrect: React.FC<RevealCorrectProps> = ({ question, onSelectCorrect
         left: 0,
         right: 0,
       }}>
-        SELECT CORRECT ANSWERS
+        {t('select_correct_answers')}
       </div>
       <LargeQuizBox
         themeName={themeName}
@@ -354,7 +351,7 @@ const RevealCorrect: React.FC<RevealCorrectProps> = ({ question, onSelectCorrect
         }}
       >
         <QuestionBoard>
-          <MiniWhiteboard initialPaths={question.questionDrawing} width={undefined} height={220} style={{ width: '100%' }} />
+          <MiniWhiteboard initialPaths={question.questionDrawing || []} width={undefined} height={220} style={{ width: '100%' }} />
         </QuestionBoard>
         <AnswersGrid>
           {question.answers.map((answer, i) => (
@@ -371,7 +368,7 @@ const RevealCorrect: React.FC<RevealCorrectProps> = ({ question, onSelectCorrect
                 {i + 1}.
               </AnswerNumber>
               <MiniWhiteboard
-                initialPaths={answer.drawing}
+                initialPaths={answer.drawing || []}
                 width={undefined}
                 height={75}
                 style={{ flex: 1, minWidth: 0, maxWidth: 'calc(100% - 60px)' }}
@@ -380,7 +377,7 @@ const RevealCorrect: React.FC<RevealCorrectProps> = ({ question, onSelectCorrect
           ))}
         </AnswersGrid>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 24, width: '100%', marginTop: 32 }}>
-          <BackButton themeName={themeName} onClick={onBack}>Back</BackButton>
+          <BackButton themeName={themeName} onClick={onBack}>{t('back')}</BackButton>
         </div>
       </LargeQuizBox>
     </ViewportContainer>
