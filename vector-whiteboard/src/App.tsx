@@ -45,6 +45,7 @@ import emailjs from '@emailjs/browser';
 import { EMAILJS_CONFIG } from './config/emailjs';
 import axios from 'axios';
 import { Button } from '@mui/material';
+import HelpModal from './components/HelpModal';
 
 // Add type declaration for dom-to-image-more
 declare module 'dom-to-image-more';
@@ -774,6 +775,7 @@ const App: React.FC = () => {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   const theme = createTheme({
     palette: {
@@ -855,6 +857,9 @@ const App: React.FC = () => {
       'select_correct_answer': 'Selecteer juiste antwoord',
       'summer': 'Zomer',
       'space': 'Ruimte',
+      'coming_soon': 'Binnenkort beschikbaar',
+      'contact': 'Contact',
+      'for_questions_feedback': 'Voor vragen of feedback:',
     },
     en: {
       'theme': 'Theme',
@@ -916,6 +921,9 @@ const App: React.FC = () => {
       'select_correct_answer': 'Select correct answer',
       'summer': 'Summer',
       'space': 'Space',
+      'coming_soon': 'Coming soon',
+      'contact': 'Contact',
+      'for_questions_feedback': 'For questions or feedback:',
     },
     de: {
       'theme': 'Thema',
@@ -977,6 +985,9 @@ const App: React.FC = () => {
       'select_correct_answer': 'Korrekte Antwort auswählen',
       'summer': 'Sommer',
       'space': 'Weltraum',
+      'coming_soon': 'Kommt bald',
+      'contact': 'Kontakt',
+      'for_questions_feedback': 'Für Fragen oder Feedback:',
     },
     fr: {
       'theme': 'Thème',
@@ -1009,7 +1020,7 @@ const App: React.FC = () => {
       'eraser': 'Gomme',
       'lasso': 'Lasso',
       'postit': 'Post-it',
-      'clear_all': 'Tout effacer',
+      'clear_all': 'Tout effacer',  
       'default': 'Défaut',
       'christmas': 'Noël',
       'dark': 'Sombre',
@@ -1037,6 +1048,9 @@ const App: React.FC = () => {
       'select_correct_answers_to_share': 'Sélectionner les bonnes réponses pour partager',
       'summer': 'Été',
       'space': 'Espace',
+      'coming_soon': 'Bientôt disponible',
+      'contact': 'Contact',
+      'for_questions_feedback': 'Pour des questions ou des retours :',
     },
   };
   function t(key: string) {
@@ -1553,7 +1567,7 @@ const App: React.FC = () => {
           </FooterButton>
           <FooterButton themeName={themeName} title={t('text_recog')}><TextFieldsIcon /><span style={{fontSize:'0.7rem'}}>{t('text_recog')}</span></FooterButton>
           <FooterButton themeName={themeName} title={t('keyboard')}><KeyboardIcon /><span style={{fontSize:'0.7rem'}}>{t('keyboard')}</span></FooterButton>
-          <FooterButton themeName={themeName} title={t('help')}><HelpOutlineIcon /><span style={{fontSize:'0.7rem'}}>{t('help')}</span></FooterButton>
+          <FooterButton themeName={themeName} title={t('help')} onClick={() => setShowHelpModal(true)}><HelpOutlineIcon /><span style={{fontSize:'0.7rem'}}>{t('help')}</span></FooterButton>
           <FooterButton themeName={themeName} title={isLoggedIn ? (isGuest ? t('logout_guest') : t('logout')) : t('login')} onClick={isLoggedIn ? handleLogout : () => setShowLogin(true)}>
             <LoginIcon />
             <span style={{fontSize:'0.7rem'}}>{isLoggedIn ? (isGuest ? t('logout_guest') : t('logout')) : t('login')}</span>
@@ -1707,6 +1721,9 @@ const App: React.FC = () => {
             </EmailButtons>
           </EmailForm>
         </EmailModal>
+      )}
+      {showHelpModal && (
+        <HelpModal themeName={themeName} onClose={() => setShowHelpModal(false)} t={t} />
       )}
     </ThemeProvider>
   );

@@ -283,15 +283,7 @@ const AnswerBox = styled.div<AnswerBoxProps>`
   align-items: center;
   background: ${({ isCorrect, themeName }) => {
     if (isCorrect) {
-      return themeName === 'dark'
-        ? '#4caf50'
-        : themeName === 'christmas'
-        ? '#fff'
-        : themeName === 'summer'
-        ? '#FF8A00'
-        : themeName === 'space'
-        ? '#4B0082'
-        : '#1bbf3a';
+      return '#4caf50'; // Always green for correct answers
     }
     return themeName === 'dark'
       ? '#42424288'
@@ -311,31 +303,15 @@ const AnswerBox = styled.div<AnswerBoxProps>`
   position: relative;
   box-sizing: border-box;
   backdrop-filter: blur(10px);
-  border: 3px solid ${({ isCorrect, themeName }) => 
+  border: 3px solid ${({ isCorrect }) => 
     isCorrect 
-      ? themeName === 'dark'
-        ? '#4caf50'
-        : themeName === 'christmas'
-        ? '#388e3c'
-        : themeName === 'summer'
-        ? '#FF8A00'
-        : themeName === 'space'
-        ? '#6B48FF'
-        : '#fff'
-      : 'transparent'
+      ? '#4caf50' // Always green border for correct answers
+      : '#f44336' // Always red border for incorrect answers
   };
-  box-shadow: ${({ isCorrect, themeName }) => 
+  box-shadow: ${({ isCorrect }) => 
     isCorrect 
-      ? themeName === 'dark'
-        ? '0 0 20px #4caf5088'
-        : themeName === 'christmas'
-        ? '0 0 20px #388e3c88'
-        : themeName === 'summer'
-        ? '0 0 20px #FF8A0088'
-        : themeName === 'space'
-        ? '0 0 20px #6B48FF88'
-        : '0 0 20px #1bbf3a88'
-      : 'none'
+      ? '0 0 20px #4caf5088' // Green glow for correct
+      : '0 0 20px #f4433688' // Red glow for incorrect
   };
   @media (max-width: 900px) {
     flex-direction: column;
@@ -355,15 +331,7 @@ const AnswerNumber = styled.div<AnswerNumberProps>`
   margin-right: 12px;
   color: ${({ isCorrect, themeName }) => {
     if (isCorrect) {
-      return themeName === 'dark'
-        ? '#4caf50'
-        : themeName === 'christmas'
-        ? '#388e3c'
-        : themeName === 'summer'
-        ? '#FF8A00'
-        : themeName === 'space'
-        ? '#6B48FF'
-        : '#222';
+      return '#4caf50'; // Always green for correct answers
     }
     return themeName === 'dark'
       ? '#fff'
@@ -403,25 +371,17 @@ interface VoteScoreProps {
 const VoteScore = styled.div<VoteScoreProps>`
   font-size: 1.1rem;
   font-weight: bold;
-  color: ${props => {
-    if (props.isCorrect) {
-      return props.themeName === 'dark'
-        ? '#4caf50'
-        : props.themeName === 'christmas'
-        ? '#388e3c'
-        : props.themeName === 'summer'
-        ? '#FF8A00'
-        : props.themeName === 'space'
-        ? '#6B48FF'
-        : '#1bbf3a';
+  color: ${({ isCorrect, themeName }) => {
+    if (isCorrect) {
+      return '#4caf50'; // Always green for correct answers
     }
-    return props.themeName === 'dark'
+    return themeName === 'dark'
       ? '#fff'
-      : props.themeName === 'christmas'
+      : themeName === 'christmas'
       ? '#222'
-      : props.themeName === 'summer'
-      ? '#FFF'
-      : props.themeName === 'space'
+      : themeName === 'summer'
+      ? '#FF8A00'
+      : themeName === 'space'
       ? '#0088FF'
       : '#222';
   }};
@@ -514,20 +474,61 @@ const BackButton = styled.button<{ themeName: string }>`
 
 interface VotesBadgeProps {
   themeName: string;
+  isCorrect?: boolean;
 }
 
 const VotesBadge = styled.div<VotesBadgeProps>`
   display: inline-block;
-  background: ${props => props.themeName === 'dark' ? '#424242' : '#f0f2f5'};
-  color: ${props => props.themeName === 'dark' ? '#fff' : '#222'};
+  background: ${({ isCorrect, themeName }) => {
+    if (isCorrect) {
+      return '#4caf50'; // Always green for correct answers
+    }
+    return themeName === 'dark' 
+      ? '#424242'
+      : themeName === 'christmas'
+      ? '#f0f2f5'
+      : themeName === 'summer'
+      ? 'rgba(255, 255, 255, 0.9)'
+      : themeName === 'space'
+      ? 'rgba(10, 10, 40, 0.8)'
+      : '#f0f2f5';
+  }};
+  color: ${({ isCorrect, themeName }) => {
+    if (isCorrect) {
+      return '#fff'; // White text on green background for correct
+    }
+    return themeName === 'dark' 
+      ? '#fff'
+      : themeName === 'christmas'
+      ? '#222'
+      : themeName === 'summer'
+      ? '#FF8A00'
+      : themeName === 'space'
+      ? '#0088FF'
+      : '#222';
+  }};
   font-size: 1.1rem;
   font-weight: 600;
   border-radius: 12px;
   padding: 4px 12px;
-  margin-left: 12px;
   min-width: 36px;
   text-align: center;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid ${({ isCorrect, themeName }) => {
+    if (isCorrect) {
+      return 'rgba(255, 255, 255, 0.2)'; // Subtle white border for correct
+    }
+    return themeName === 'dark' 
+      ? 'rgba(255, 255, 255, 0.1)'
+      : themeName === 'christmas'
+      ? 'rgba(255, 255, 255, 0.2)'
+      : themeName === 'summer'
+      ? 'rgba(255, 255, 255, 0.2)'
+      : themeName === 'space'
+      ? 'rgba(255, 255, 255, 0.1)'
+      : 'rgba(255, 255, 255, 0.2)';
+  }};
 `;
 
 const WinnerBox = styled(AnswerBox)`
@@ -936,13 +937,13 @@ const QuizSummary: React.FC<QuizSummaryProps> = ({
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: 24 }}>
                 <PieChart
                   data={[
-                    { label: 'True', value: question.votes?.true || 0, isCorrect: question.answer === true },
-                    { label: 'False', value: question.votes?.false || 0, isCorrect: question.answer === false }
+                    { label: t('true'), value: question.votes?.true || 0, isCorrect: question.answer === true },
+                    { label: t('false'), value: question.votes?.false || 0, isCorrect: question.answer === false }
                   ]}
                   themeName={themeName}
                   disableAnimation={screenshotMode}
                 />
-                  </div>
+              </div>
             </QuestionContainer>
           ))}
           {pollSummaries && pollSummaries.map((poll, pollIdx) => {

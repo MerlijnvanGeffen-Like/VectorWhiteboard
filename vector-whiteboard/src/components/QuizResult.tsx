@@ -259,31 +259,14 @@ const AnswersGrid = styled.div`
   }
 `;
 
-const AnswerBox = styled.div<{ correct?: boolean; themeName: string }>`
+const AnswerBox = styled.div<{ isCorrect: boolean; themeName: string }>`
   display: flex;
   align-items: center;
-  background: ${({ correct, themeName }) => {
-    if (correct) {
-      return themeName === 'dark'
-        ? '#4caf50'
-        : themeName === 'christmas'
-        ? '#fff'
-        : themeName === 'summer'
-        ? '#FF8A00'
-        : themeName === 'space'
-        ? '#4B0082'
-        : '#1bbf3a';
-    }
-    return themeName === 'dark'
-      ? '#42424288'
-      : themeName === 'christmas'
-      ? '#fff8'
-      : themeName === 'summer'
-      ? '#FFB80088'
-      : themeName === 'space'
-      ? '#0066CC88'
-      : '#fff8';
-  }};
+  background: ${({ isCorrect }) => 
+    isCorrect 
+      ? '#4caf50' // Always green for correct answers
+      : '#f44336' // Always red for incorrect answers
+  };
   border-radius: 12px;
   padding: 8px 12px;
   min-height: 90px;
@@ -292,31 +275,15 @@ const AnswerBox = styled.div<{ correct?: boolean; themeName: string }>`
   position: relative;
   box-sizing: border-box;
   backdrop-filter: blur(10px);
-  border: 3px solid ${({ correct, themeName }) => 
-    correct 
-      ? themeName === 'dark'
-        ? '#4caf50'
-        : themeName === 'christmas'
-        ? '#388e3c'
-        : themeName === 'summer'
-        ? '#FF8A00'
-        : themeName === 'space'
-        ? '#6B48FF'
-        : '#fff'
-      : 'transparent'
+  border: 3px solid ${({ isCorrect }) => 
+    isCorrect 
+      ? '#4caf50' // Always green border for correct answers
+      : '#f44336' // Always red border for incorrect answers
   };
-  box-shadow: ${({ correct, themeName }) => 
-    correct 
-      ? themeName === 'dark'
-        ? '0 0 20px #4caf5088'
-        : themeName === 'christmas'
-        ? '0 0 20px #388e3c88'
-        : themeName === 'summer'
-        ? '0 0 20px #FF8A0088'
-        : themeName === 'space'
-        ? '0 0 20px #6B48FF88'
-        : '0 0 20px #1bbf3a88'
-      : 'none'
+  box-shadow: ${({ isCorrect }) => 
+    isCorrect 
+      ? '0 0 20px #4caf5088' // Green glow for correct
+      : '0 0 20px #f4433688' // Red glow for incorrect
   };
   @media (max-width: 900px) {
     flex-direction: column;
@@ -325,32 +292,15 @@ const AnswerBox = styled.div<{ correct?: boolean; themeName: string }>`
   }
 `;
 
-const AnswerNumber = styled.div<{ correct?: boolean; themeName: string }>`
+const AnswerNumber = styled.div<{ isCorrect: boolean; themeName: string }>`
   font-size: 2rem;
   font-weight: bold;
   margin-right: 12px;
-  color: ${({ correct, themeName }) => {
-    if (correct) {
-      return themeName === 'dark'
-        ? '#4caf50'
-        : themeName === 'christmas'
-        ? '#388e3c'
-        : themeName === 'summer'
-        ? '#FF8A00'
-        : themeName === 'space'
-        ? '#6B48FF'
-        : '#222';
-    }
-    return themeName === 'dark'
-      ? '#fff'
-      : themeName === 'christmas'
-      ? '#222'
-      : themeName === 'summer'
-      ? '#FFF'
-      : themeName === 'space'
-      ? '#0088FF'
-      : '#222';
-  }};
+  color: ${({ isCorrect }) => 
+    isCorrect 
+      ? '#222' // Always green for correct answers
+      : '#f44336' // Always red for incorrect answers
+  };
   width: 32px;
   text-align: right;
 `;
@@ -417,59 +367,45 @@ const NextButton = styled(BackButton)`
   }
 `;
 
-const VoteBox = styled.div<{ themeName: string }>`
+const VoteBox = styled.div<{ isCorrect: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: ${({ themeName }) => 
-    themeName === 'dark'
-      ? '#424242'
-      : themeName === 'christmas'
-      ? '#fff'
-      : themeName === 'summer'
-      ? '#FF8A00'
-      : themeName === 'space'
-      ? '#4B0082'
-      : '#fff'
-  };
-  border-radius: 8px;
+  background: ${({ isCorrect }) => isCorrect ? '#fff' : '#f44336'};
+  border-radius: 6px;
   margin-left: 12px;
-  padding: 4px 6px;
-  box-shadow: 0 1px 4px #0001;
-  width: 40px;
+  padding: 4px 8px;
   min-width: 40px;
-  max-width: 40px;
-  position: relative;
-  backdrop-filter: blur(10px);
-  border: 1px solid ${({ themeName }) => 
-    themeName === 'dark' 
-      ? 'rgba(255, 255, 255, 0.1)'
-      : themeName === 'christmas'
-      ? 'rgba(255, 255, 255, 0.2)'
-      : themeName === 'summer'
-      ? 'rgba(255, 255, 255, 0.2)'
-      : themeName === 'space'
-      ? 'rgba(255, 255, 255, 0.1)'
-      : 'rgba(255, 255, 255, 0.2)'
+`;
+
+const VoteScore = styled.div<{ isCorrect: boolean; themeName: string }>`
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: ${({ isCorrect }) => 
+    isCorrect 
+      ? '#222' // Always green for correct answers
+      : '#f44336' // Always red for incorrect answers
   };
 `;
 
-const VoteScore = styled.div<{ themeName: string }>`
-  font-size: 1.1rem;
-  font-weight: bold;
-  color: ${({ themeName }) => 
-    themeName === 'dark'
-      ? '#fff'
-      : themeName === 'christmas'
-      ? '#222'
-      : themeName === 'summer'
-      ? '#FFF'
-      : themeName === 'space'
-      ? '#0088FF'
-      : '#222'
+const VotesBadge = styled.div<{ isCorrect: boolean; themeName: string }>`
+  display: inline-block;
+  background: ${({ isCorrect }) => 
+    isCorrect 
+      ? '#4caf50' // Always green for correct answers
+      : '#f44336' // Always red for incorrect answers
   };
-  margin: 2px 0;
+  color: #fff; // Always white text
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 12px;
+  padding: 4px 12px;
+  min-width: 36px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 `;
 
 // StarlightBackground component
@@ -684,17 +620,19 @@ const QuizResult: React.FC<QuizResultProps> = ({
               Geen juiste antwoorden gemarkeerd.
             </div>
           ) : (
-            question.answers.filter(a => a.isCorrect).map((answer, i) => (
-              <AnswerBox key={answer.id} correct={correctIds.includes(answer.id)} themeName={themeName}>
-                <AnswerNumber correct={correctIds.includes(answer.id)} themeName={themeName}>{i + 1}.</AnswerNumber>
+            question.answers.filter(a => a.isCorrect).map((answer) => (
+              <AnswerBox key={answer.id} isCorrect={correctIds.includes(answer.id)} themeName={themeName}>
+                <AnswerNumber isCorrect={correctIds.includes(answer.id)} themeName={themeName}>
+                  {question.answers.findIndex(a => a.id === answer.id) + 1}.
+                </AnswerNumber>
                 <MiniWhiteboard
                   initialPaths={answer.drawing}
                   width={undefined}
                   height={75}
                   style={{ flex: 1, minWidth: 0, maxWidth: 'calc(100% - 60px)' }}
                 />
-                <VoteBox themeName={themeName}>
-                  <VoteScore themeName={themeName}>{answer.votes}</VoteScore>
+                <VoteBox isCorrect={correctIds.includes(answer.id)}>
+                  <VoteScore isCorrect={correctIds.includes(answer.id)} themeName={themeName}>{answer.votes}</VoteScore>
                 </VoteBox>
               </AnswerBox>
             ))
@@ -714,7 +652,13 @@ export const PieChart: React.FC<{ data: { label: string; value: number; isCorrec
   const radius = size / 2;
   const total = data.reduce((sum, d) => sum + d.value, 0) || 1;
   let angle = 0;
-  const colors = THEME_COLORS[themeName] || THEME_COLORS['default'];
+  // Helper to determine font size based on label length
+  const getFontSize = (label: string) => {
+    if (label.length <= 4) return 22;
+    if (label.length <= 8) return 16;
+    if (label.length <= 12) return 13;
+    return 11;
+  };
   return (
     <svg
       width={size}
@@ -747,7 +691,7 @@ export const PieChart: React.FC<{ data: { label: string; value: number; isCorrec
         return (
           <g key={i}>
             <path
-              fill={d.isCorrect ? '#1bbf3a' : colors[i % colors.length]}
+              fill={d.isCorrect ? '#4caf50' : '#f44336'}
               stroke="#fff"
               strokeWidth={2}
               d={`M${radius},${radius} L${x0},${y0} A${radius},${radius} 0 ${largeArc} 1 ${x1},${y1} Z`}
@@ -757,8 +701,8 @@ export const PieChart: React.FC<{ data: { label: string; value: number; isCorrec
                 x={radius + (radius * 0.6) * Math.cos((a0 + a1) / 2 - Math.PI / 2)}
                 y={radius + (radius * 0.6) * Math.sin((a0 + a1) / 2 - Math.PI / 2)}
                 fill={themeName === 'dark' ? '#fff' : '#222'}
-                fontSize={22}
-                fontWeight={700}
+                fontSize={getFontSize(d.label)}
+                fontWeight={500}
                 textAnchor="middle"
                 alignmentBaseline="middle"
                 pointerEvents="none"
