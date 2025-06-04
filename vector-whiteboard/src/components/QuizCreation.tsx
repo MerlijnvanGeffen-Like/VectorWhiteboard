@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import styled, { keyframes } from 'styled-components';
+import React, { useState, useRef, useMemo } from 'react';
+import styled, { keyframes, css } from 'styled-components';
 import MiniWhiteboard from './MiniWhiteboard';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
@@ -40,13 +40,53 @@ const SnowContainer = styled.div`
   z-index: 1000;
 `;
 
-const ViewportContainer = styled.div`
+// Add starry background animation
+const starryBackground = keyframes`
+  0% { background-position: 0 0; }
+  100% { background-position: 100% 100%; }
+`;
+
+// Star animation
+const twinkle = keyframes`
+  0%, 100% { opacity: 0.7; transform: translate(0, 0); }
+  50% { opacity: 1; transform: translate(10px, 10px); }
+`;
+
+const rotate = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`;
+
+const ViewportContainer = styled.div<{ themeName: string }>`
   width: 100vw;
   height: 100vh;
   overflow: hidden;
   position: relative;
-  background: inherit;
+  background: ${({ themeName }) => 
+    themeName === 'dark' 
+      ? 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
+      : themeName === 'christmas'
+      ? 'linear-gradient(135deg, #2e7d32 100%)'
+      : themeName === 'summer'
+      ? 'linear-gradient(135deg, #FFE3B2 0%, #660020 100%)'
+      : themeName === 'space'
+      ? `linear-gradient(135deg, #000428 0%, #004e92 100%),
+         radial-gradient(2px 2px at 20px 30px, #fff, rgba(0,0,0,0)),
+         radial-gradient(2px 2px at 40px 70px, #fff, rgba(0,0,0,0)),
+         radial-gradient(2px 2px at 50px 160px, #fff, rgba(0,0,0,0)),
+         radial-gradient(2px 2px at 90px 40px, #fff, rgba(0,0,0,0)),
+         radial-gradient(2px 2px at 130px 80px, #fff, rgba(0,0,0,0)),
+         radial-gradient(2px 2px at 160px 120px, #fff, rgba(0,0,0,0))`
+      : 'linear-gradient(135deg, #FFE3B2 0%, #660020 100%)'
+  };
   background-attachment: fixed;
+  background-size: ${({ themeName }) => 
+    themeName === 'space' ? '200% 200%, 200px 200px, 200px 200px, 200px 200px, 200px 200px, 200px 200px, 200px 200px' : '100% 100%'
+  };
+  ${({ themeName }) => themeName === 'space' && css`
+    animation: ${starryBackground} 50s linear infinite;
+    will-change: background-position;
+  `}
 `;
 
 const LargeQuizBox = styled.div<{ themeName: string }>`
@@ -64,6 +104,10 @@ const LargeQuizBox = styled.div<{ themeName: string }>`
       ? 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%)'
       : themeName === 'christmas'
       ? 'linear-gradient(135deg, #c62828 100%)'
+      : themeName === 'summer'
+      ? 'linear-gradient(135deg, #FF8A00 0%, #FFB800 100%)'
+      : themeName === 'space'
+      ? 'linear-gradient(135deg, rgba(10, 10, 40, 0.95) 0%, rgba(15, 20, 50, 0.95) 100%)'
       : 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)'
   };
   border-radius: 18px;
@@ -73,6 +117,18 @@ const LargeQuizBox = styled.div<{ themeName: string }>`
   flex-direction: column;
   align-items: center;
   z-index: 2;
+  backdrop-filter: blur(10px);
+  border: 1px solid ${({ themeName }) => 
+    themeName === 'dark' 
+      ? 'rgba(255, 255, 255, 0.1)'
+      : themeName === 'christmas'
+      ? 'rgba(255, 255, 255, 0.2)'
+      : themeName === 'summer'
+      ? 'rgba(255, 255, 255, 0.2)'
+      : themeName === 'space'
+      ? 'rgba(255, 255, 255, 0.1)'
+      : 'rgba(255, 255, 255, 0.2)'
+  };
 `;
 
 // Decoratieve blokken
@@ -87,11 +143,28 @@ const TopLeftBlock = styled.div<{ themeName: string }>`
       ? 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%)'
       : themeName === 'christmas'
       ? 'linear-gradient(135deg, #c62828 100%)'
+      : themeName === 'summer'
+      ? 'linear-gradient(135deg, #FF6B6B 0%, #FFB800 100%)'
+      : themeName === 'space'
+      ? 'linear-gradient(135deg, #4B0082 0%, #6B48FF 100%)'
       : 'linear-gradient(135deg, #E20248 0%, #F6A71B 100%)'
   };
   border-radius: 100px;
   z-index: 1;
   transform: rotate(-125deg);
+  box-shadow: 0 4px 32px rgba(0,0,0,0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid ${({ themeName }) => 
+    themeName === 'dark' 
+      ? 'rgba(255, 255, 255, 0.1)'
+      : themeName === 'christmas'
+      ? 'rgba(255, 255, 255, 0.2)'
+      : themeName === 'summer'
+      ? 'rgba(255, 255, 255, 0.2)'
+      : themeName === 'space'
+      ? 'rgba(255, 255, 255, 0.1)'
+      : 'rgba(255, 255, 255, 0.2)'
+  };
 `;
 const BottomRightBlock = styled.div<{ themeName: string }>`
   position: absolute;
@@ -104,11 +177,28 @@ const BottomRightBlock = styled.div<{ themeName: string }>`
       ? 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%)'
       : themeName === 'christmas'
       ? 'linear-gradient(135deg, #c62828 100%)'
+      : themeName === 'summer'
+      ? 'linear-gradient(135deg, #4ECDC4 0%, #45B7D1 100%)'
+      : themeName === 'space'
+      ? 'linear-gradient(135deg, #FF8A00 0%, #FFB800 100%)'
       : 'linear-gradient(135deg, #E20248 0%, #F6A71B 100%)'
   };
   border-radius: 100px;
   z-index: 1;
   transform: rotate(-45deg);
+  box-shadow: 0 4px 32px rgba(0,0,0,0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid ${({ themeName }) => 
+    themeName === 'dark' 
+      ? 'rgba(255, 255, 255, 0.1)'
+      : themeName === 'christmas'
+      ? 'rgba(255, 255, 255, 0.2)'
+      : themeName === 'summer'
+      ? 'rgba(255, 255, 255, 0.2)'
+      : themeName === 'space'
+      ? 'rgba(255, 255, 255, 0.1)'
+      : 'rgba(255, 255, 255, 0.2)'
+  };
 `;
 
 const Title = styled.h2`
@@ -142,10 +232,20 @@ const AnswersGrid = styled.div`
   }
 `;
 
-const AnswerBox = styled.div`
+const AnswerBox = styled.div<{ themeName: string }>`
   display: flex;
   align-items: center;
-  background: #fff8;
+  background: ${({ themeName }) => 
+    themeName === 'dark'
+      ? '#42424288'
+      : themeName === 'christmas'
+      ? '#fff8'
+      : themeName === 'summer'
+      ? '#FFB80088'
+      : themeName === 'space'
+      ? '#0066CC88'
+      : '#fff8'
+  };
   border-radius: 12px;
   padding: 8px 44px 8px 12px;
   min-height: 90px;
@@ -153,6 +253,18 @@ const AnswerBox = styled.div`
   flex: 1 1 0;
   position: relative;
   box-sizing: border-box;
+  backdrop-filter: blur(10px);
+  border: 1px solid ${({ themeName }) => 
+    themeName === 'dark' 
+      ? 'rgba(255, 255, 255, 0.1)'
+      : themeName === 'christmas'
+      ? 'rgba(255, 255, 255, 0.2)'
+      : themeName === 'summer'
+      ? 'rgba(255, 255, 255, 0.2)'
+      : themeName === 'space'
+      ? 'rgba(255, 255, 255, 0.1)'
+      : 'rgba(255, 255, 255, 0.2)'
+  };
   @media (max-width: 900px) {
     flex-direction: column;
     min-height: 120px;
@@ -160,21 +272,41 @@ const AnswerBox = styled.div`
   }
 `;
 
-const AnswerNumber = styled.div`
+const AnswerNumber = styled.div<{ themeName: string }>`
   font-size: 2rem;
   font-weight: bold;
   margin-right: 12px;
-  color: #222;
+  color: ${({ themeName }) => 
+    themeName === 'dark'
+      ? '#fff'
+      : themeName === 'christmas'
+      ? '#222'
+      : themeName === 'summer'
+      ? '#FFF'
+      : themeName === 'space'
+      ? '#0088FF'
+      : '#222'
+  };
   width: 32px;
   text-align: right;
 `;
 
-const VoteBox = styled.div`
+const VoteBox = styled.div<{ themeName: string }>`
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #fff;
+  background: ${({ themeName }) => 
+    themeName === 'dark'
+      ? '#424242'
+      : themeName === 'christmas'
+      ? '#fff'
+      : themeName === 'summer'
+      ? '#FF8A00'
+      : themeName === 'space'
+      ? '#4B0082'
+      : '#fff'
+  };
   border-radius: 8px;
   margin-left: 12px;
   padding: 4px 6px;
@@ -193,6 +325,10 @@ const VoteBtn = styled.button<{ up?: boolean; themeName: string }>`
       return up ? '#4caf50' : '#f44336';
     } else if (themeName === 'christmas') {
       return up ? '#388e3c' : '#c62828';
+    } else if (themeName === 'summer') {
+      return up ? '#FFF' : '#FFF';
+    } else if (themeName === 'space') {
+      return up ? '#6B48FF' : '#FF8A00';
     }
     return up ? '#1bbf3a' : '#e53935';
   }};
@@ -212,7 +348,17 @@ const VoteBtn = styled.button<{ up?: boolean; themeName: string }>`
 const VoteScore = styled.div<{ themeName: string }>`
   font-size: 1.1rem;
   font-weight: bold;
-  color: ${({ themeName }) => themeName === 'dark' ? '#000' : '#222'};
+  color: ${({ themeName }) => 
+    themeName === 'dark'
+      ? '#fff'
+      : themeName === 'christmas'
+      ? '#222'
+      : themeName === 'summer'
+      ? '#FFF'
+      : themeName === 'space'
+      ? '#0088FF'
+      : '#222'
+  };
   margin: 2px 0;
 `;
 
@@ -222,6 +368,10 @@ const RemoveBtn = styled.button<{ themeName: string }>`
       ? '#f44336'
       : themeName === 'christmas'
       ? '#c62828'
+      : themeName === 'summer'
+      ? '#FF8A00'
+      : themeName === 'space'
+      ? '#FF8A00'
       : '#e53935'
   };
   border: none;
@@ -245,6 +395,10 @@ const RemoveBtn = styled.button<{ themeName: string }>`
       ? '#f4433622'
       : themeName === 'christmas'
       ? '#c6282822'
+      : themeName === 'summer'
+      ? '#FF8A0022'
+      : themeName === 'space'
+      ? '#FF8A0022'
       : '#e5393522'
   };
   transition: background 0.2s;
@@ -255,6 +409,10 @@ const RemoveBtn = styled.button<{ themeName: string }>`
         ? '#d32f2f'
         : themeName === 'christmas'
         ? '#b71c1c'
+        : themeName === 'summer'
+        ? '#FF6B6B'
+        : themeName === 'space'
+        ? '#FF6B6B'
         : '#b71c1c'
     };
   }
@@ -277,6 +435,10 @@ const AddButton = styled.button<{ themeName: string }>`
       ? '#4d4d4d'
       : themeName === 'christmas'
       ? '#388e3c'
+      : themeName === 'summer'
+      ? '#FF8A00'
+      : themeName === 'space'
+      ? '#4B0082'
       : '#ffb6c1'
   };
   color: #fff;
@@ -293,9 +455,103 @@ const AddButton = styled.button<{ themeName: string }>`
         ? '#7d7d7d'
         : themeName === 'christmas'
         ? '#2e7d32'
+        : themeName === 'summer'
+        ? '#FF6B6B'
+        : themeName === 'space'
+        ? '#6B48FF'
         : '#ffdbed'
     };
   }
+`;
+
+// StarlightBackground component
+const StarlightBackground = styled.div`
+  position: absolute;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  background: linear-gradient(135deg, #000428 0%, #001e3c 100%);
+`;
+
+// Star component
+const Star = styled.div<{ size: number; x: number; y: number; delay: number; duration: number }>`
+  position: absolute;
+  left: ${props => props.x}vw;
+  top: ${props => props.y}vh;
+  width: ${props => props.size}px;
+  height: ${props => props.size}px;
+  background: white;
+  border-radius: 50%;
+  opacity: 0.7;
+  filter: blur(${props => props.size > 2 ? 1 : 0}px);
+  animation: ${twinkle} ${props => props.duration}s ease-in-out infinite;
+  animation-delay: ${props => props.delay}s;
+  will-change: transform, opacity;
+`;
+
+// Planet component
+const Planet = styled.div<{ position: 'top' | 'bottom' }>`
+  position: absolute;
+  ${props => {
+    switch(props.position) {
+      case 'top':
+        return `
+          right: 5%;
+          top: 5%;
+          width: 180px;
+          height: 180px;
+          background: linear-gradient(45deg, #4B0082, #6B48FF);
+          box-shadow: 
+            inset -30px -30px 50px rgba(0,0,0,0.5),
+            0 0 50px rgba(107, 72, 255, 0.3);
+        `;
+      case 'bottom':
+        return `
+          left: 5%;
+          bottom: 5%;
+          width: 220px;
+          height: 220px;
+          background: linear-gradient(45deg, #FF8A00, #FFB800);
+          box-shadow: 
+            inset -30px -30px 50px rgba(0,0,0,0.5),
+            0 0 50px rgba(255, 184, 0, 0.3);
+        `;
+    }
+  }}
+  border-radius: 50%;
+  animation: ${rotate} 60s linear infinite;
+  z-index: 1;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 50%;
+    background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.1) 45%, transparent 50%);
+  }
+`;
+
+// Galaxy component
+const Galaxy = styled.div<{ size: number; x: number; y: number; delay: number }>`
+  position: absolute;
+  left: ${props => props.x}vw;
+  top: ${props => props.y}vh;
+  width: ${props => props.size}px;
+  height: ${props => props.size}px;
+  background: radial-gradient(circle at center, 
+    rgba(107, 72, 255, 0.2) 0%,
+    rgba(75, 0, 130, 0.1) 40%,
+    transparent 70%
+  );
+  border-radius: 50%;
+  animation: ${twinkle} ${props => 15 + props.delay}s ease-in-out infinite;
+  animation-delay: ${props => props.delay}s;
+  filter: blur(8px);
+  z-index: 0;
 `;
 
 interface QuizCreationProps {
@@ -305,7 +561,7 @@ interface QuizCreationProps {
   currentWidth?: number;
   clearKey?: number;
   mode?: 'draw' | 'eraser';
-  themeName: string;
+  themeName: 'dark' | 'christmas' | 'default' | 'summer' | 'space';
   t: (key: string) => string;
 }
 
@@ -385,8 +641,39 @@ const QuizCreation: React.FC<QuizCreationProps> = ({ onSaveQuestion, onReveal, c
     delay: Math.random() * 5
   })) : [];
 
+  // Genereer sterren alleen 1x per mount
+  const stars = useMemo(() => themeName === 'space' ? Array.from({ length: 200 }, (_, i) => ({
+    id: i,
+    size: Math.random() * 2.2 + 0.8,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    delay: Math.random() * 10,
+    duration: 8 + Math.random() * 7
+  })) : [], [themeName]);
+
+  // Genereer sterrenstelsels
+  const galaxies = useMemo(() => themeName === 'space' ? Array.from({ length: 5 }, (_, i) => ({
+    id: i,
+    size: 100 + Math.random() * 150,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    delay: Math.random() * 10
+  })) : [], [themeName]);
+
   return (
-    <ViewportContainer>
+    <ViewportContainer themeName={themeName}>
+      {themeName === 'space' && (
+        <StarlightBackground>
+          {galaxies.map(({id, ...galaxyProps}) => (
+            <Galaxy key={id} {...galaxyProps} />
+          ))}
+          {stars.map(({id, ...starProps}) => (
+            <Star key={id} {...starProps} />
+          ))}
+          <Planet position="top" />
+          <Planet position="bottom" />
+        </StarlightBackground>
+      )}
       {themeName === 'christmas' && (
         <SnowContainer>
           {snowflakes.map(flake => (
@@ -410,7 +697,7 @@ const QuizCreation: React.FC<QuizCreationProps> = ({ onSaveQuestion, onReveal, c
         textAlign: 'center',
         letterSpacing: '0.02em',
         marginBottom: 18,
-        marginTop: 24,
+        marginTop: 19,
         textShadow: '0 2px 8px #0002',
         fontFamily: 'Poppins, Arial, sans-serif',
         lineHeight: 1.1,
@@ -437,10 +724,10 @@ const QuizCreation: React.FC<QuizCreationProps> = ({ onSaveQuestion, onReveal, c
         </QuestionBoard>
         <AnswersGrid>
           {answers.map((answer, i) => (
-            <AnswerBox key={answer.id}>
-              <AnswerNumber>{i + 1}.</AnswerNumber>
+            <AnswerBox key={answer.id} themeName={themeName}>
+              <AnswerNumber themeName={themeName}>{i + 1}.</AnswerNumber>
               <MiniWhiteboard ref={el => answerRefs.current[i] = el} width={undefined} height={75} style={{ flex: 1, minWidth: 0, maxWidth: 'calc(100% - 60px)' }} color={currentColor} lineWidth={currentWidth} mode={mode} />
-              <VoteBox>
+              <VoteBox themeName={themeName}>
                 <VoteBtn up themeName={themeName} onClick={() => vote(answer.id, 1)} title="Upvote">
                   <ArrowUpwardIcon fontSize="small" />
                 </VoteBtn>

@@ -40,6 +40,14 @@ import TrueFalseResult from './components/TrueFalseResult';
 import PollCreation, { PollCreationHandle } from './components/PollCreation';
 import PollResult from './components/PollResult';
 import PollSummary from './components/PollSummary';
+import domtoimage from 'dom-to-image-more';
+import emailjs from '@emailjs/browser';
+import { EMAILJS_CONFIG } from './config/emailjs';
+import axios from 'axios';
+import { Button } from '@mui/material';
+
+// Add type declaration for dom-to-image-more
+declare module 'dom-to-image-more';
 
 const bounce = keyframes`
   0% { transform: scale(1); }
@@ -47,6 +55,101 @@ const bounce = keyframes`
   50% { transform: scale(0.97); }
   70% { transform: scale(1.05); }
   100% { transform: scale(1); }
+`;
+
+const wave = keyframes`
+  0% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-10px); }
+  100% { transform: translateX(-50%) translateY(0); }
+`;
+
+const float = keyframes`
+  0% { transform: translateX(0) translateY(0); }
+  50% { transform: translateX(10px) translateY(-5px); }
+  100% { transform: translateX(0) translateY(0); }
+`;
+
+const rotate = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`;
+
+const Sun = styled.div`
+  position: absolute;
+  top: 60px;
+  right: 100px;
+  width: 80px;
+  height: 80px;
+  background: #FFD700;
+  border-radius: 50%;
+  box-shadow: 0 0 40px #FFD700;
+  animation: ${rotate} 20s linear infinite;
+`;
+
+const Cloud = styled.div<{ delay: number; size: number; top: number; left: number }>`
+  position: absolute;
+  width: ${props => props.size}px;
+  height: ${props => props.size * 0.6}px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: ${props => props.size}px;
+  top: ${props => props.top}px;
+  left: ${props => props.left}px;
+  animation: ${float} 6s ease-in-out infinite;
+  animation-delay: ${props => props.delay}s;
+  &:before, &:after {
+    content: '';
+    position: absolute;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+  }
+  &:before {
+    width: ${props => props.size * 0.5}px;
+    height: ${props => props.size * 0.5}px;
+    top: ${props => -props.size * 0.25}px;
+    left: ${props => props.size * 0.1}px;
+  }
+  &:after {
+    width: ${props => props.size * 0.6}px;
+    height: ${props => props.size * 0.6}px;
+    top: ${props => -props.size * 0.3}px;
+    right: ${props => props.size * 0.1}px;
+  }
+`;
+
+const Sky = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(180deg, #87CEEB 0%, #4ECDC4 100%);
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+`;
+
+const OceanWave = styled.div`
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  width: 200%;
+  height: 100px;
+  background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 100%);
+  border-radius: 50%;
+  animation: ${wave} 3s ease-in-out infinite;
+  z-index: 1;
+  pointer-events: none;
+`;
+
+const OceanContainer = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
 `;
 
 const FooterBar = styled.div<{ whiteboard?: boolean; themeName: string }>`
@@ -100,6 +203,10 @@ const FooterButton = styled.button<{ themeName: string }>`
       ? '#fff'
       : themeName === 'christmas'
       ? '#fff'
+      : themeName === 'summer'
+      ? '#fff'
+      : themeName === 'space'
+      ? '#fff'
       : '#fff'
   };
   font-size: 1.5rem;
@@ -117,6 +224,10 @@ const FooterButton = styled.button<{ themeName: string }>`
         ? '#4d4d4d'
         : themeName === 'christmas'
         ? '#c62828'
+        : themeName === 'summer'
+        ? '#fff'
+        : themeName === 'space'
+        ? '#6B48FF'
         : '#ff416c'
     };
   }
@@ -125,6 +236,10 @@ const FooterButton = styled.button<{ themeName: string }>`
       themeName === 'dark' 
         ? '#fff'
         : themeName === 'christmas'
+        ? '#fff'
+        : themeName === 'summer'
+        ? '#fff'
+        : themeName === 'space'
         ? '#fff'
         : '#fff'
     };
@@ -137,6 +252,10 @@ const RevealButton = styled.button<{ themeName: string }>`
       ? '#424242'
       : themeName === 'christmas'
       ? '#fff'
+      : themeName === 'summer'
+      ? '#fff'
+      : themeName === 'space'
+      ? '#fff'
       : 'linear-gradient(90deg, #ff416c 0%, #ff4b2b 100%)'
   };
   color: ${({ themeName }) => 
@@ -144,6 +263,10 @@ const RevealButton = styled.button<{ themeName: string }>`
       ? '#fff'
       : themeName === 'christmas'
       ? '#000'
+      : themeName === 'summer'
+      ? '#45B7D1'
+      : themeName === 'space'
+      ? '#6B48FF'
       : '#fff'
   };
   font-weight: bold;
@@ -158,6 +281,10 @@ const RevealButton = styled.button<{ themeName: string }>`
       ? '#0003'
       : themeName === 'christmas'
       ? '#fff'
+      : themeName === 'summer'
+      ? '#45B7D133'
+      : themeName === 'space'
+      ? '#6B48FF33'
       : '#ff416c33'
   };
   transition: background 0.2s, color 0.2s, box-shadow 0.2s;
@@ -167,6 +294,10 @@ const RevealButton = styled.button<{ themeName: string }>`
         ? '#616161'
         : themeName === 'christmas'
         ? '#f5f5f5'
+        : themeName === 'summer'
+        ? '#45B7D1'
+        : themeName === 'space'
+        ? '#6B48FF'
         : 'linear-gradient(90deg, #ff2b4b 0%, #ff416c 100%)'
     };
     color: ${({ themeName }) => 
@@ -174,6 +305,10 @@ const RevealButton = styled.button<{ themeName: string }>`
         ? '#fff'
         : themeName === 'christmas'
         ? '#000'
+        : themeName === 'summer'
+        ? '#fff'
+        : themeName === 'space'
+        ? '#fff'
         : '#fff'
     };
     box-shadow: 0 4px 16px ${({ themeName }) => 
@@ -181,6 +316,10 @@ const RevealButton = styled.button<{ themeName: string }>`
         ? '#0005'
         : themeName === 'christmas'
         ? '#fff'
+        : themeName === 'summer'
+        ? '#45B7D155'
+        : themeName === 'space'
+        ? '#6B48FF55'
         : '#ff416c55'
     };
   }
@@ -199,6 +338,107 @@ const MainContent = styled.div<{ themeName: string }>`
   background-attachment: fixed;
   @media (max-width: 900px) {
     padding-bottom: 120px;
+  }
+`;
+
+const EmailModal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+`;
+
+const EmailForm = styled.div<{ themeName: string }>`
+  background: ${({ themeName }) => 
+    themeName === 'dark' 
+      ? '#2d2d2d'
+      : themeName === 'christmas'
+      ? '#c62828'
+      : themeName === 'summer'
+      ? 'linear-gradient(135deg, #FF8A00 0%, #FFB800 100%)'
+      : themeName === 'space'
+      ? 'linear-gradient(135deg, rgba(10, 10, 40, 0.95) 0%, rgba(15, 20, 50, 0.95) 100%)'
+      : 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)'
+  };
+  padding: 24px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+  backdrop-filter: blur(10px);
+  border: 1px solid ${({ themeName }) => 
+    themeName === 'dark' 
+      ? 'rgba(255, 255, 255, 0.1)'
+      : themeName === 'christmas'
+      ? 'rgba(255, 255, 255, 0.2)'
+      : themeName === 'summer'
+      ? 'rgba(255, 255, 255, 0.2)'
+      : themeName === 'space'
+      ? 'rgba(255, 255, 255, 0.1)'
+      : 'rgba(255, 255, 255, 0.2)'
+  };
+`;
+
+const EmailInput = styled.input`
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(5px);
+`;
+
+const EmailButtons = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+`;
+
+const EmailButton = styled.button<{ themeName: string; isCancel?: boolean }>`
+  background: ${({ themeName, isCancel }) => 
+    isCancel
+      ? '#fff4'
+      : themeName === 'dark' 
+        ? '#424242'
+        : themeName === 'christmas'
+        ? '#388e3c'
+        : themeName === 'summer'
+        ? '#FF8A00'
+        : themeName === 'space'
+        ? '#4B0082'
+        : '#fff4'
+  };
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  backdrop-filter: blur(5px);
+  border: 1px solid ${({ themeName }) => 
+    themeName === 'dark' 
+      ? 'rgba(255, 255, 255, 0.1)'
+      : themeName === 'christmas'
+      ? 'rgba(255, 255, 255, 0.2)'
+      : themeName === 'summer'
+      ? 'rgba(255, 255, 255, 0.2)'
+      : themeName === 'space'
+      ? 'rgba(255, 255, 255, 0.1)'
+      : 'rgba(255, 255, 255, 0.2)'
+  };
+
+  &:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   }
 `;
 
@@ -373,6 +613,120 @@ const languages = [
   { code: 'fr', label: 'Français', icon: '🇫🇷' },
 ];
 
+const CLOUDINARY_CLOUD_NAME = 'djmejezed';
+const CLOUDINARY_UPLOAD_PRESET = 'ml_default';
+
+async function uploadImageToCloudinary(base64Image: string): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', base64Image);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+  const response = await axios.post(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, formData);
+  return response.data.secure_url;
+}
+
+const THEME_COLORS: Record<string, string[]> = {
+  dark: ['#388e3c', '#1976d2', '#c62828', '#f6a71b', '#ff416c', '#ff4b2b', '#2d2d2d', '#e20248'],
+  christmas: ['#c62828', '#388e3c', '#fff176', '#ffb300', '#fff', '#43a047', '#e53935', '#fbc02d'],
+  summer: ['#FFB800', '#FF8A00', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD', '#D4A5A5'],
+  space: ['#6B48FF', '#FF48B8', '#48FFB8', '#B848FF', '#48B8FF', '#FFB848', '#B8FF48', '#FF4848'],
+  default: ['#ff416c', '#ff4b2b', '#1bbf3a', '#388e3c', '#1976d2', '#c62828', '#f6a71b', '#2d2d2d', '#e20248', '#43a047', '#ffa500', '#800080', '#008080', '#FF69B4']
+};
+
+const ViewportContainer = styled.div<{ themeName: string }>`
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+  background: ${({ themeName }) => 
+    themeName === 'dark' 
+      ? 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
+      : themeName === 'christmas'
+      ? 'linear-gradient(135deg, #2e7d32 100%)'
+      : themeName === 'summer'
+      ? 'linear-gradient(135deg, #4ECDC4 0%, #45B7D1 100%)'
+      : themeName === 'space'
+      ? 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
+      : 'linear-gradient(135deg, #FFE3B2 0%, #660020 100%)'
+  };
+  background-attachment: fixed;
+`;
+
+const LargeQuizBox = styled.div<{ themeName: string }>`
+  position: relative;
+  left: 50%;
+  top: 64px;
+  transform: translate(-50%, 0);
+  width: 90vw;
+  height: 87vh;
+  min-width: 320px;
+  max-width: 1400px;
+  max-height: 900px;
+  background: ${({ themeName }) => 
+    themeName === 'dark' 
+      ? 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%)'
+      : themeName === 'christmas'
+      ? 'linear-gradient(135deg, #c62828 100%)'
+      : themeName === 'summer'
+      ? 'linear-gradient(135deg, rgba(78, 205, 196, 0.95) 0%, rgba(69, 183, 209, 0.95) 100%)'
+      : themeName === 'space'
+      ? 'linear-gradient(135deg, #16213e 0%, #0f3460 100%)'
+      : 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)'
+  };
+  border-radius: 18px;
+  padding: 32px 32px 24px 32px;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 2;
+`;
+
+const TopLeftBlock = styled.div<{ themeName: string }>`
+  position: absolute;
+  top: -150px;
+  left: -450px;
+  width: 740px;
+  height: 740px;
+  background: ${({ themeName }) => 
+    themeName === 'dark' 
+      ? 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%)'
+      : themeName === 'christmas'
+      ? 'linear-gradient(135deg, #c62828 100%)'
+      : themeName === 'summer'
+      ? 'linear-gradient(135deg, #FF6B6B 0%, #FFB800 100%)'
+      : themeName === 'space'
+      ? 'linear-gradient(135deg, #6B48FF 0%, #48FFB8 100%)'
+      : 'linear-gradient(135deg, #E20248 0%, #F6A71B 100%)'
+  };
+  border-radius: 100px;
+  z-index: 1;
+  transform: rotate(-125deg);
+`;
+
+const BottomRightBlock = styled.div<{ themeName: string }>`
+  position: absolute;
+  bottom: -30px;
+  right: -450px;
+  width: 740px;
+  height: 740px;
+  background: ${({ themeName }) => 
+    themeName === 'dark' 
+      ? 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%)'
+      : themeName === 'christmas'
+      ? 'linear-gradient(135deg, #c62828 100%)'
+      : themeName === 'summer'
+      ? 'linear-gradient(135deg, #4ECDC4 0%, #45B7D1 100%)'
+      : themeName === 'space'
+      ? 'linear-gradient(135deg, #FF48B8 0%, #B848FF 100%)'
+      : 'linear-gradient(135deg, #E20248 0%, #F6A71B 100%)'
+  };
+  border-radius: 100px;
+  z-index: 1;
+  transform: rotate(-45deg);
+`;
+
+type ThemeName = 'default' | 'christmas' | 'dark' | 'summer' | 'space';
+
 const App: React.FC = () => {
   const [page, setPage] = useState<'whiteboard' | 'quiz' | 'reveal' | 'result' | 'dashboard' | 'summary' | 'truefalse' | 'truefalsecorrect' | 'truefalseresult' | 'poll' | 'pollresult'>('quiz');
   const [currentColor, setCurrentColor] = useState('#222');
@@ -397,7 +751,7 @@ const App: React.FC = () => {
   const [lastQuizPage, setLastQuizPage] = useState<'quiz' | 'reveal' | 'result' | 'truefalse'>('quiz');
   const [quizClearKey, setQuizClearKey] = useState(0);
   const [quizMode, setQuizMode] = useState<'draw' | 'eraser'>('draw');
-  const [themeName, setThemeName] = useState<'default' | 'christmas' | 'dark'>('default');
+  const [themeName, setThemeName] = useState<ThemeName>('default');
   const [showLanguageSubmenu, setShowLanguageSubmenu] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState('nl');
   const [trueFalseQuestions, setTrueFalseQuestions] = useState<TrueFalseQuestion[]>([]);
@@ -416,6 +770,10 @@ const App: React.FC = () => {
   const questionRef = useRef<any>(null);
   const pollCreationRef = useRef<PollCreationHandle>(null);
   const [pollSummaries, setPollSummaries] = useState<any[]>([]);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [sending, setSending] = useState(false);
 
   const theme = createTheme({
     palette: {
@@ -487,6 +845,16 @@ const App: React.FC = () => {
       'poll_creation': 'Peiling aanmaken',
       'save_poll': 'Peiling opslaan',
       'poll_result': 'Peiling resultaten',
+      'share_via_email': 'Deel via email',
+      'share_quiz_summary': 'Deel quiz samenvatting',
+      'no_correct_answers': 'Geen juiste antwoorden gemarkeerd.',
+      'question': 'Vraag',
+      'true_false_question': 'Waar/Niet waar vraag',
+      'delete': 'Verwijder',
+      'select_correct_answers_to_share': 'Selecteer juiste antwoorden om te delen',
+      'select_correct_answer': 'Selecteer juiste antwoord',
+      'summer': 'Zomer',
+      'space': 'Ruimte',
     },
     en: {
       'theme': 'Theme',
@@ -538,6 +906,16 @@ const App: React.FC = () => {
       'poll_creation': 'Poll Creation',
       'save_poll': 'Save Poll',
       'poll_result': 'Poll Result',
+      'share_via_email': 'Share via Email',
+      'share_quiz_summary': 'Share Quiz Summary',
+      'no_correct_answers': 'No correct answers marked.',
+      'question': 'Question',
+      'true_false_question': 'True/False Question',
+      'delete': 'Delete',
+      'select_correct_answers_to_share': 'Select correct answers to share',
+      'select_correct_answer': 'Select correct answer',
+      'summer': 'Summer',
+      'space': 'Space',
     },
     de: {
       'theme': 'Thema',
@@ -589,6 +967,16 @@ const App: React.FC = () => {
       'poll_creation': 'Umfrage erstellen',
       'save_poll': 'Umfrage speichern',
       'poll_result': 'Umfrage Ergebnis',
+      'share_via_email': 'Per Email teilen',
+      'share_quiz_summary': 'Quiz Zusammenfassung teilen',
+      'no_correct_answers': 'Keine korrekten Antworten markiert.',
+      'question': 'Frage',
+      'true_false_question': 'Wahr/Falsch Frage',
+      'delete': 'Löschen',
+      'select_correct_answers_to_share': 'Korrekte Antworten auswählen, um zu teilen',
+      'select_correct_answer': 'Korrekte Antwort auswählen',
+      'summer': 'Sommer',
+      'space': 'Weltraum',
     },
     fr: {
       'theme': 'Thème',
@@ -640,6 +1028,15 @@ const App: React.FC = () => {
       'poll_creation': 'Créer une enquête',
       'save_poll': 'Enregistrer l\'enquête',
       'poll_result': 'Résultat du sondage',
+      'share_via_email': 'Partager par email',
+      'share_quiz_summary': 'Partager la résumé du quiz',
+      'no_correct_answers': 'Aucune réponse correcte marquée.',
+      'question': 'Question',
+      'true_false_question': 'Question Vrai/Faux',
+      'delete': 'Supprimer',  
+      'select_correct_answers_to_share': 'Sélectionner les bonnes réponses pour partager',
+      'summer': 'Été',
+      'space': 'Espace',
     },
   };
   function t(key: string) {
@@ -780,6 +1177,25 @@ const App: React.FC = () => {
     setPollSummaries(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleShare = async () => {
+    if (!userEmail) {
+      setError('Please log in to share.');
+      return;
+    }
+    setSending(true);
+    try {
+      // Implement the logic to share the quiz summary via email
+      // This is a placeholder and should be replaced with the actual implementation
+      console.log('Sharing quiz summary via email');
+      setShowEmailModal(false);
+    } catch (e) {
+      console.error('Error sharing quiz summary:', e);
+      setError('An error occurred while sharing.');
+    } finally {
+      setSending(false);
+    }
+  };
+
   if (!isLoggedIn) {
     return <Login onLogin={handleLogin} />;
   }
@@ -788,6 +1204,24 @@ const App: React.FC = () => {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <MainContent themeName={themeName}>
+        {themeName === 'summer' && (
+          <OceanContainer>
+            <Sky>
+              <Sun />
+              <Cloud delay={0} size={120} top={80} left={200} />
+              <Cloud delay={2} size={100} top={120} left={400} />
+              <Cloud delay={1} size={140} top={60} left={600} />
+              <Cloud delay={3} size={90} top={100} left={800} />
+              <Cloud delay={1.5} size={110} top={40} left={300} />
+              <Cloud delay={2.5} size={130} top={90} left={500} />
+              <Cloud delay={0.5} size={95} top={70} left={700} />
+              <Cloud delay={3.5} size={115} top={50} left={900} />
+            </Sky>
+            <OceanWave />
+            <OceanWave style={{ bottom: '20px', animationDelay: '1.5s' }} />
+            <OceanWave style={{ bottom: '40px', animationDelay: '0.75s' }} />
+          </OceanContainer>
+        )}
         {page === 'whiteboard' && (
           <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)' }}>
             <Whiteboard
@@ -815,7 +1249,6 @@ const App: React.FC = () => {
           <RevealCorrect
             question={currentQuestion}
             onSelectCorrect={handleSetCorrectAnswer}
-            onBack={() => setPage('quiz')}
             onShowResult={(selected: number[]) => {
               if (selected.length > 0) handleSetCorrectAnswer(selected);
             }}
@@ -828,8 +1261,6 @@ const App: React.FC = () => {
           <QuizResult
             question={currentQuestion}
             correctIds={selectedCorrect}
-            onBack={handleBackToReveal}
-            onNext={handleNextQuestion}
             themeName={themeName}
             t={t}
           />
@@ -842,7 +1273,7 @@ const App: React.FC = () => {
             onDeleteQuizQuestion={handleDeleteQuizQuestion}
             onDeleteTrueFalse={handleDeleteTrueFalse}
             onDeletePoll={handleDeletePoll}
-            onClose={() => setPage(lastQuizPage)}
+            onClose={() => setPage('quiz')}
             themeName={themeName}
             t={t}
           />
@@ -919,7 +1350,7 @@ const App: React.FC = () => {
             themeName={themeName}
             t={t}
             onBack={() => {
-              setPage('summary');
+              setPage('poll');
             }}
           />
         )}
@@ -1059,6 +1490,8 @@ const App: React.FC = () => {
           <FooterButton themeName={themeName} title={t('default')} onClick={() => { setThemeName('default'); closeSubmenus(); }}><PaletteIcon /><span style={{fontSize:'0.7rem'}}>{t('default')}</span></FooterButton>
           <FooterButton themeName={themeName} title={t('christmas')} onClick={() => { setThemeName('christmas'); closeSubmenus(); }}><AcUnitIcon /><span style={{fontSize:'0.7rem'}}>{t('christmas')}</span></FooterButton>
           <FooterButton themeName={themeName} title={t('dark')} onClick={() => { setThemeName('dark'); closeSubmenus(); }}><WhatshotIcon /><span style={{fontSize:'0.7rem'}}>{t('dark')}</span></FooterButton>
+          <FooterButton themeName={themeName} title={t('summer')} onClick={() => { setThemeName('summer'); closeSubmenus(); }}><HolidayVillageIcon /><span style={{fontSize:'0.7rem'}}>{t('summer')}</span></FooterButton>
+          <FooterButton themeName={themeName} title={t('space')} onClick={() => { setThemeName('space'); closeSubmenus(); }}><WhatshotIcon /><span style={{fontSize:'0.7rem'}}>{t('space')}</span></FooterButton>
           <FooterButton themeName={themeName} title={t('back')} onClick={closeSubmenus}><ArrowForwardIosIcon style={{transform:'rotate(180deg)'}} /><span style={{fontSize:'0.7rem'}}>{t('back')}</span></FooterButton>
         </SubmenuFooterBar>
       ) : showTemplateSubmenu ? (
@@ -1127,7 +1560,11 @@ const App: React.FC = () => {
           </FooterButton>
           {page !== 'whiteboard' && (
             page === 'summary' ? (
-              <RevealButton themeName={themeName} onClick={() => setPage('quiz')}>{t('quiz_creation')}</RevealButton>
+              <>
+                <RevealButton themeName={themeName} onClick={() => setPage('quiz')}>{t('quiz_creation')}</RevealButton>
+                <RevealButton themeName={themeName} onClick={() => setShowEmailModal(true)}>{t('share_via_email')}</RevealButton>
+                <RevealButton themeName={themeName} onClick={() => setPage('quiz')}>{t('back')}</RevealButton>
+              </>
             ) : (
               <>
                 <RevealButton themeName={themeName} onClick={() => {
@@ -1137,52 +1574,60 @@ const App: React.FC = () => {
                   }
                 }}>{t('show_summary')}</RevealButton>
                 {page === 'result' && (
-                  <RevealButton themeName={themeName} onClick={handleNextQuestion}>{t('show_next')}</RevealButton>
+                  <>
+                    <RevealButton
+                      themeName={themeName}
+                      onClick={handleNextQuestion}
+                    >
+                      {t('show_next')}
+                    </RevealButton>
+                    <RevealButton
+                      themeName={themeName}
+                      onClick={handleBackToReveal}
+                    >
+                      {t('back')}
+                    </RevealButton>
+                  </>
                 )}
                 {page === 'reveal' && (
-                  <RevealButton
-                    themeName={themeName}
-                    onClick={() => {
-                      if (selectedAnswers.length > 0) handleSetCorrectAnswer(selectedAnswers);
-                    }}
-                    id="show-result-btn"
-                    disabled={selectedAnswers.length === 0}
-                  >
-                    {t('show_result')}
-                  </RevealButton>
+                  <>
+                    <RevealButton
+                      themeName={themeName}
+                      onClick={() => {
+                        if (selectedAnswers.length > 0) handleSetCorrectAnswer(selectedAnswers);
+                      }}
+                      id="show-result-btn"
+                      disabled={selectedAnswers.length === 0}
+                    >
+                      {t('show_result')}
+                    </RevealButton>
+                    <RevealButton
+                      themeName={themeName}
+                      onClick={() => setPage('quiz')}
+                    >
+                      {t('back')}
+                    </RevealButton>
+                  </>
                 )}
                 {page === 'truefalsecorrect' && (
-                  <RevealButton
-                    themeName={themeName}
-                    onClick={() => {
-                      if (currentTrueFalseQuestion) {
-                        setTrueFalseVotes(prev => {
-                          const idx = prev.findIndex(q => JSON.stringify(q.questionDrawing) === JSON.stringify(currentTrueFalseQuestion.questionDrawing));
-                          if (idx !== -1) {
-                            const updated = [...prev];
-                            updated[idx] = {
-                              ...updated[idx],
-                              answer: currentTrueFalseQuestion.answer,
-                              votes: currentTrueFalseVotes
-                            };
-                            return updated;
-                          } else {
-                            return [
-                              ...prev,
-                              {
-                                questionDrawing: currentTrueFalseQuestion.questionDrawing,
-                                answer: currentTrueFalseQuestion.answer,
-                                votes: currentTrueFalseVotes
-                              }
-                            ];
-                          }
-                        });
-                        setPage('summary');
-                      }
-                    }}
-                  >
-                    {currentLanguage === 'nl' ? 'Toon juiste antwoord' : 'Reveal correct answer'}
-                  </RevealButton>
+                  <>
+                    <RevealButton
+                      themeName={themeName}
+                      onClick={() => {
+                        if (typeof window !== 'undefined' && (window as any).__quizRevealHandler) {
+                          (window as any).__quizRevealHandler();
+                        }
+                      }}
+                    >
+                      {t('show_result')}
+                    </RevealButton>
+                    <RevealButton
+                      themeName={themeName}
+                      onClick={() => setPage('truefalse')}
+                    >
+                      {t('back')}
+                    </RevealButton>
+                  </>
                 )}
                 {page !== 'result' && page !== 'reveal' && page !== 'truefalsecorrect' && page !== 'poll' && (
                   <RevealButton
@@ -1216,12 +1661,52 @@ const App: React.FC = () => {
               {t('save_poll')}
             </RevealButton>
           )}
+          {page === 'pollresult' && (
+            <RevealButton
+              themeName={themeName}
+              onClick={() => setPage('poll')}
+            >
+              {t('back')}
+            </RevealButton>
+          )}
         </FooterBar>
       )}
       {showLogin && (
         <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.15)',zIndex:2000}}>
           <Login onLogin={handleLogin} onClose={() => setShowLogin(false)} />
         </div>
+      )}
+      {showEmailModal && (
+        <EmailModal>
+          <EmailForm themeName={themeName}>
+            <h3 style={{ color: themeName === 'dark' ? '#fff' : '#fff', marginBottom: '16px' }}>
+              {t('share_quiz_summary')}
+            </h3>
+            <EmailInput
+              type="email"
+              placeholder="Enter email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            {error && <p style={{ color: '#ff4444', margin: '8px 0' }}>{error}</p>}
+            <EmailButtons>
+              <EmailButton 
+                themeName={themeName} 
+                isCancel 
+                onClick={() => setShowEmailModal(false)}
+              >
+                Cancel
+              </EmailButton>
+              <EmailButton 
+                themeName={themeName} 
+                onClick={handleShare}
+                disabled={sending}
+              >
+                {sending ? 'Sending...' : 'Send'}
+              </EmailButton>
+            </EmailButtons>
+          </EmailForm>
+        </EmailModal>
       )}
     </ThemeProvider>
   );

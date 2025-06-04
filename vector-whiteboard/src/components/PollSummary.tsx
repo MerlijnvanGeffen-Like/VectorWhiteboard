@@ -184,7 +184,26 @@ const PollSummary = ({ poll, themeName = 'default', t = (x: string) => x, onClos
   const maxVotes = Math.max(...poll.options.map(opt => opt.votes));
   return (
     <LargeQuizBox themeName={themeName}>
-      <Title>{t('poll_results') || 'Poll resultaten'}</Title>
+      <div style={{
+        zIndex: 3,
+        color: 'white',
+        fontWeight: 800,
+        fontSize: '2.2rem',
+        textAlign: 'center',
+        letterSpacing: '0.02em',
+        marginBottom: 18,
+        marginTop: 19,
+        textShadow: '0 2px 8px #0002',
+        fontFamily: 'Poppins, Arial, sans-serif',
+        lineHeight: 1.1,
+        maxWidth: '100%',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+      }}>
+        {t('poll_results') || 'Poll resultaten'}
+      </div>
       <QuestionBlock>{poll.question}</QuestionBlock>
       <AnswersGrid>
         {poll.options.map((opt, idx) => (
