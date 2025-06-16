@@ -99,7 +99,7 @@ const HelpModal: React.FC<HelpModalProps> = ({ themeName, onClose, t }) => (
         <strong>{t('contact')}</strong>
         <ContactInfo>
           {t('for_questions_feedback')}<br />
-          <a href="mailto:support@vectorwb.app" style={{ color: '#fff', textDecoration: 'underline' }}>support@vectorwb.app</a>
+          <a href="mailto:support@npqp.nl" style={{ color: '#fff', textDecoration: 'underline' }}>support@npqp.nl</a>
         </ContactInfo>
       </Section>
     </ModalContent>

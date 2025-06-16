@@ -646,8 +646,13 @@ const QuizResult: React.FC<QuizResultProps> = ({
   );
 };
 
-// Pie chart component
-export const PieChart: React.FC<{ data: { label: string; value: number; isCorrect?: boolean }[]; themeName?: string; disableAnimation?: boolean }> = ({ data, themeName = 'default', disableAnimation }) => {
+interface PieChartProps {
+  data: { label: string; value: number; isCorrect?: boolean }[];
+  themeName: string;
+  disableAnimation?: boolean;
+}
+
+export const PieChart: React.FC<PieChartProps> = ({ data, themeName, disableAnimation = false }) => {
   const size = 200;
   const radius = size / 2;
   const total = data.reduce((sum, d) => sum + d.value, 0) || 1;

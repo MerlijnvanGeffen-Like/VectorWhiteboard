@@ -59,12 +59,12 @@ const ViewportContainer = styled.div<{ themeName: string }>`
     themeName === 'dark' 
       ? 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
       : themeName === 'christmas'
-      ? 'linear-gradient(135deg, #c62828 0%, #b71c1c 100%)'
+      ? 'linear-gradient(135deg, #2e7d32 100%)'
       : themeName === 'summer'
       ? 'linear-gradient(135deg, #FF8A00 0%, #FFB800 100%)'
       : themeName === 'space'
       ? 'linear-gradient(135deg, #000428 0%, #004e92 100%)'
-      : 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)'
+      : 'linear-gradient(135deg, #FFE3B2 0%, #660020 100%)'
   };
 `;
 

@@ -1,4 +1,10 @@
 import React, { useState } from 'react';
+import axios from 'axios';
+
+// Configure axios defaults
+axios.defaults.baseURL = 'http://localhost:5000';
+axios.defaults.withCredentials = true;
+axios.defaults.timeout = 10000;
 
 const loginBoxStyle: React.CSSProperties = {
   background: '#0d2233',
@@ -85,6 +91,8 @@ const iconStyle: React.CSSProperties = {
 export default function Login({ onLogin, onClose }: { onLogin: (email: string, isGuest?: boolean) => void, onClose?: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -100,9 +108,10 @@ export default function Login({ onLogin, onClose }: { onLogin: (email: string, i
     return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
   }
 
-  function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    
     if (!validateEmail(email)) {
       setError('Please enter a valid email address.');
       return;
@@ -111,19 +120,70 @@ export default function Login({ onLogin, onClose }: { onLogin: (email: string, i
       setError('Password must be at least 8 characters.');
       return;
     }
+
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      // Dummy check: email = test@test.com, password = password123
-      if (email === 'test@test.com' && password === 'password123') {
-        if (remember) localStorage.setItem('rememberedEmail', email);
-        else localStorage.removeItem('rememberedEmail');
+    try {
+      const response = await axios.post('/api/login', {
+        email: email,
+        password: password,
+        remember_me: remember
+      });
+
+      if (response.data.user) {
+        if (remember) {
+          localStorage.setItem('rememberedEmail', email);
+          localStorage.setItem('rememberMe', 'true');
+        } else {
+          localStorage.removeItem('rememberedEmail');
+          localStorage.removeItem('rememberMe');
+        }
         localStorage.setItem('isLoggedIn', 'true');
-        onLogin(email);
-      } else {
-        setError('Invalid email or password.');
+        localStorage.setItem('userData', JSON.stringify(response.data.user));
+        onLogin(response.data.user.email);
       }
-    }, 900);
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(err.response?.data?.error || 'Login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleRegister(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+    if (username.length < 3) {
+      setError('Username must be at least 3 characters.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await axios.post('/api/register', {
+        email,
+        name: username,
+        password,
+        username
+      });
+
+      if (response.data.message === "User registered successfully") {
+        // Automatically log in after successful registration
+        await handleLogin(e);
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handleForgot() {
@@ -150,7 +210,7 @@ export default function Login({ onLogin, onClose }: { onLogin: (email: string, i
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {/* Linksboven blok */}
+      {/* Background elements */}
       <div style={{
         position: 'absolute',
         top: '-150px',
@@ -162,7 +222,6 @@ export default function Login({ onLogin, onClose }: { onLogin: (email: string, i
         zIndex: 1,
         transform: 'rotate(-125deg)',
       }} />
-      {/* Rechtsonder blok */}
       <div style={{
         position: 'absolute',
         bottom: '-30px',
@@ -174,7 +233,8 @@ export default function Login({ onLogin, onClose }: { onLogin: (email: string, i
         zIndex: 1,
         transform: 'rotate(-45deg)',
       }} />
-      {/* Titel */}
+
+      {/* Title */}
       <div style={{
         zIndex: 2,
         color: 'white',
@@ -183,7 +243,7 @@ export default function Login({ onLogin, onClose }: { onLogin: (email: string, i
         textAlign: 'center',
         letterSpacing: '0.02em',
         marginBottom: 32,
-        marginTop: 32,
+        marginTop: -90,
         textShadow: '0 2px 8px #0002',
         fontFamily: 'Poppins, Arial, sans-serif',
         lineHeight: 1.1,
@@ -191,53 +251,95 @@ export default function Login({ onLogin, onClose }: { onLogin: (email: string, i
       }}>
         NO PREP<br />INTERACTIVE<br />QUIZZES / POLLS
       </div>
-      <form style={{ ...loginBoxStyle, zIndex: 2 }} onSubmit={handleLogin}>
+
+      <form style={{ ...loginBoxStyle, zIndex: 2 }} onSubmit={isRegistering ? handleRegister : handleLogin}>
         {onClose && <button style={closeStyle} type="button" onClick={onClose} aria-label="Close">×</button>}
         <div style={{ textAlign: 'center', marginBottom: 12 }}>
           <span style={iconStyle}>🔒</span>
-          <div style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: 6 }}>Teacher Log In</div>
+          <div style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: 6 }}>
+            {isRegistering ? 'Create Account' : 'Teacher Log In'}
+          </div>
         </div>
+
+        {isRegistering && (
+          <input
+            type="text"
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            style={inputStyle}
+            required
+          />
+        )}
+
         <input
-          style={inputStyle}
           type="email"
           placeholder="Email"
           value={email}
-          onChange={e => setEmail(e.target.value)}
-          autoFocus
-        />
-        <input
+          onChange={(e) => setEmail(e.target.value)}
           style={inputStyle}
+          required
+        />
+
+        <input
           type="password"
           placeholder="Password"
           value={password}
-          onChange={e => setPassword(e.target.value)}
+          onChange={(e) => setPassword(e.target.value)}
+          style={inputStyle}
+          required
         />
-        <div style={rememberStyle}>
-          <input type="checkbox" id="remember" checked={remember} onChange={e => setRemember(e.target.checked)} />
-          <label htmlFor="remember" style={{ color: '#fff', fontSize: '0.98rem', cursor: 'pointer' }}>Remember me</label>
-        </div>
-        <button type="button" style={forgotStyle} onClick={handleForgot} tabIndex={-1}>
-          Forgot password?
-        </button>
-        {forgotSent && <div style={{ color: '#00e676', fontSize: '0.95rem', marginBottom: 8 }}>Reset link sent!</div>}
+
         {error && <div style={errorStyle}>{error}</div>}
-        <button type="submit" style={buttonStyle} disabled={loading}>{loading ? 'Logging in...' : 'Log in'}</button>
+
+        <div style={rememberStyle}>
+          <input
+            type="checkbox"
+            id="remember"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+          />
+          <label htmlFor="remember">Remember me</label>
+        </div>
+
+        <button
+          type="submit"
+          style={{
+            ...buttonStyle,
+            opacity: loading ? 0.7 : 1,
+            cursor: loading ? 'not-allowed' : 'pointer'
+          }}
+          disabled={loading}
+        >
+          {loading ? 'Please wait...' : (isRegistering ? 'Register' : 'Log In')}
+        </button>
+
+        <button
+          type="button"
+          style={forgotStyle}
+          onClick={() => setIsRegistering(!isRegistering)}
+        >
+          {isRegistering ? 'Already have an account? Log in' : 'Need an account? Register'}
+        </button>
+
+        <button
+          type="button"
+          style={forgotStyle}
+          onClick={handleForgot}
+        >
+          {forgotSent ? 'Reset link sent!' : 'Forgot password?'}
+        </button>
+
         <button
           type="button"
           style={{
             ...buttonStyle,
-            width: '60%',
-            margin: '18px auto 0 auto',
-            fontSize: '0.98rem',
-            padding: '7px 0',
-            background: 'linear-gradient(90deg, #00b4ff 0%, #00c853 100%)',
-            minWidth: 120,
-            maxWidth: 180,
-            display: 'block',
+            background: 'linear-gradient(90deg, rgb(0, 168, 255) 0%, rgb(6, 169, 0) 100%)',
+            marginTop: 8
           }}
           onClick={handleGuest}
         >
-          Proceed As Guest
+          Continue as Guest
         </button>
       </form>
     </div>

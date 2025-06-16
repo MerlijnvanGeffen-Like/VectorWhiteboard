@@ -1,0 +1,340 @@
+openapi: 3.0.0
+info:
+  title: "Quiz Manager"
+  description: "An API for Quizers"
+  version: "1.0.0"
+servers:
+  - url: "http://127.0.0.1:81/api"
+components:
+  schemas:
+    User:
+      type: "object"
+      required:
+        - E-mail
+        - Name
+        - Password
+        - Username
+      properties:
+        E-mail:
+          type: "string"
+        Name:
+          type: "string"
+        Password:
+          type: "string"
+        Username:
+          type: "string"
+    Quizes:
+      type: "object"
+      required:
+        - Quiz_ID
+        - TeacherEmail
+        - Name
+        - Column
+      properties:
+        Quiz_ID:
+          type: "integer"
+        TeacherEmail:
+          type: "string"
+        Name:
+          type: "string"
+        Column:
+          type: "integer"
+    Questions:
+      type: "object"
+      required:
+        - Questions_id
+        - Quiz_ID
+        - TeacherEmail
+        - Question
+        - PossibleAnswers
+        - RightAnswers
+        - WrongAnswer
+        - Description
+        - AmountAnswers
+      properties:
+        Questions_id:
+          type: "integer"
+        Quiz_ID:
+          type: "integer"
+        TeacherEmail:
+          type: "string"
+        Question:
+          type: "string"
+        PossibleAnswers:
+          type: "integer"
+        RightAnswers:
+          type: "string"
+        WrongAnswer:
+          type: "string"
+        Description:
+          type: "string"
+        AmountAnswers:
+          type: "integer"
+  parameters:
+    E-mail:
+      name: "E-mail"
+      description: "Unique identifier for the user"
+      in: path
+      required: true
+      schema:
+        type: "string"
+    Name:
+      name: "Name"
+      description: "Full name for the user"
+      in: path
+      required: true
+      schema:
+        type: "string"
+    Password:
+      name: "Password"
+      description: "Password for the user"
+      in: path
+      required: true
+      schema:
+        type: "string"
+    Quiz_ID:
+      name: "Quiz_ID"
+      description: "ID of the quiz"
+      in: path
+      required: true
+      schema:
+        type: "integer"
+    TeacherEmail:
+      name: "TeacherEmail"
+      description: "Email of the teacher who created the quiz"
+      in: path
+      required: true
+      schema:
+        type: "string"
+    Questions_id:
+      name: "Questions_id"
+      description: "ID of the question"
+      in: path
+      required: true
+      schema:
+        type: "integer"
+paths:
+  /User:
+    get:
+      operationId: "Response.list_of_users"
+      tags:
+        - users
+      summary: "Reads all the users"
+      responses:
+        "200":
+          description: "Successfully read all the users"
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: "Response.add_user"
+      tags:
+        - users
+      summary: "Creates a user"
+      requestBody:
+        description: "User to create"
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/User"
+      responses:
+        "201":
+          description: "User created successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+  /User/{E-mail}:
+    get:
+      operationId: "Response.read_one_user"
+      tags:
+        - users
+      summary: "Reads a specific user by ID"
+      parameters:
+        - $ref: "#/components/parameters/E-mail"
+      responses:
+        "200":
+          description: "User retrieved successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: "User not found"
+    delete:
+      operationId: "Response.delete_user"
+      tags:
+        - users
+      summary: "Deletes a user"
+      parameters:
+        - $ref: "#/components/parameters/E-mail"
+      responses:
+        "204":
+          description: "User deleted successfully"
+    put:
+      operationId: "Response.update_user"
+      tags:
+        - users
+      summary: "Updates a user"
+      parameters:
+        - $ref: "#/components/parameters/E-mail"
+      requestBody:
+        description: "Updated User data"
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/User"
+      responses:
+        "200":
+          description: "User updated successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+  /Quize:
+    post:
+      operationId: "Response.add_quiz"
+      tags:
+        - Quizes
+      summary: "Creates a quiz"
+      requestBody:
+        description: "Quiz to create"
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Quizes"
+      responses:
+        "201":
+          description: "Quiz created successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quizes"
+  /Quiz/{TeacherEmail}:
+    get:
+      operationId: "Response.list_of_quizes_of_user"
+      tags:
+        - Quizes
+      summary: "Reads all quizzes for a teacher"
+      parameters:
+        - $ref: "#/components/parameters/TeacherEmail"
+      responses:
+        "200":
+          description: "Quizzes found successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quizes"
+        "404":
+          description: "Quizzes not found"
+  /Quize/{Quiz_ID}:
+    delete:
+      operationId: "Response.delete_quiz"
+      tags:
+        - Quizes
+      summary: "Deletes a quiz"
+      parameters:
+        - $ref: "#/components/parameters/Quiz_ID"
+      responses:
+        "204":
+          description: "Quiz deleted successfully"
+        "404":
+          description: "Quiz not found"
+    put:
+      operationId: "Response.update_quiz"
+      tags:
+        - Quizes
+      summary: "Updates a quiz"
+      parameters:
+        - $ref: "#/components/parameters/Quiz_ID"
+      requestBody:
+        description: "Updated Quiz data"
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Quizes"
+      responses:
+        "200":
+          description: "Quiz updated successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quizes"
+  /Questions:
+    post:
+      operationId: "Response.add_question"
+      tags:
+        - Questions
+      summary: "Creates a question"
+      requestBody:
+        description: "Question to create"
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Questions"
+      responses:
+        "201":
+          description: "Question created successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Questions"
+  /Questions/quiz/{Quiz_ID}:
+    get:
+      operationId: "Response.list_of_Questions_of_user"
+      tags:
+        - Questions
+      summary: "Reads all questions based on the quiz ID"
+      parameters:
+        - $ref: "#/components/parameters/Quiz_ID"
+      responses:
+        "200":
+          description: "Questions found successfully"
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/Questions"
+        "404":
+          description: "Questions not found"
+  /Questions/{Questions_id}:
+    delete:
+      operationId: "Response.delete_question"
+      tags:
+        - Questions
+      summary: "Deletes a question"
+      parameters:
+        - $ref: "#/components/parameters/Questions_id"
+      responses:
+        "204":
+          description: "Question deleted successfully"
+    put:
+      operationId: "Response.update_question"
+      tags:
+        - Questions
+      summary: "Updates a question by its ID"
+      parameters:
+        - $ref: "#/components/parameters/Questions_id"
+      requestBody:
+        description: "Updated question data"
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Questions"
+      responses:
+        "200":
+          description: "Question updated successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Questions"

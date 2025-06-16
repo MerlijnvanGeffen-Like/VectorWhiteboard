@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
@@ -46,6 +46,8 @@ import { EMAILJS_CONFIG } from './config/emailjs';
 import axios from 'axios';
 import { Button } from '@mui/material';
 import HelpModal from './components/HelpModal';
+import WbSunnyIcon from '@mui/icons-material/WbSunny';
+import PublicIcon from '@mui/icons-material/Public';
 
 // Add type declaration for dom-to-image-more
 declare module 'dom-to-image-more';
@@ -165,7 +167,11 @@ const FooterBar = styled.div<{ whiteboard?: boolean; themeName: string }>`
         ? 'linear-gradient(90deg, #2d2d2d 0%, #1a1a1a 100%)'
         : themeName === 'christmas'
         ? 'linear-gradient(90deg, #c62828 0%, #388e3c 100%)'
-        : 'linear-gradient(90deg, #ff5f6d 0%, #ff416c 100%)';
+        : themeName === 'summer'
+        ? 'linear-gradient(135deg, #4ECDC4 0%, #45B7D1 100%);'
+        : themeName === 'space'
+        ? 'linear-gradient(135deg, #FF8A00 0%, #FFB800 100%)'
+        : 'linear-gradient(135deg, #E20248 0%, #F6A71B 100%)'
     }
     return 'none !important';
   }};
@@ -449,20 +455,23 @@ export interface AnswerData {
   votes: number;
   drawing?: any;
   isCorrect?: boolean;
+  text?: string;
 }
 export interface QuizQuestion {
   questionDrawing: any;
   answers: AnswerData[];
 }
 
-interface TrueFalseQuestion {
+type PollSummary = {
+  question: string;
+  options: { id: number; text: string; votes: number; drawing: any }[];
+};
+
+type TrueFalseQuestion = {
   questionDrawing: any;
   answer: boolean;
-  votes?: {
-    true: number;
-    false: number;
+  votes: { true: number; false: number };
   };
-}
 
 const CustomModalOverlay = styled.div`
   position: fixed;
@@ -589,7 +598,11 @@ const SubmenuFooterBar = styled(FooterBar)`
         ? 'linear-gradient(90deg, #2d2d2d 0%, #1a1a1a 100%)'
         : themeName === 'christmas'
         ? 'linear-gradient(90deg, #c62828 0%, #388e3c 100%)'
-        : 'linear-gradient(90deg, #ff5f6d 0%, #ff416c 100%)';
+        : themeName === 'summer'
+        ? 'linear-gradient(135deg, #4ECDC4 0%, #45B7D1 100%);'
+        : themeName === 'space'
+        ? 'linear-gradient(135deg, rgba(10, 10, 40, 0.95) 0%, rgba(15, 20, 50, 0.95) 100%)'
+        : 'linear-gradient(135deg, #E20248 0%, #F6A71B 100%)'
     }
     return themeName === 'dark'
       ? '#2d2d2d'
@@ -728,54 +741,159 @@ const BottomRightBlock = styled.div<{ themeName: string }>`
 
 type ThemeName = 'default' | 'christmas' | 'dark' | 'summer' | 'space';
 
+type ViewState = 'summary' | 'result' | 'whiteboard' | 'home' | 'quiz' | 'reveal' | 'dashboard' | 'truefalse' | 'truefalsecorrect' | 'poll' | 'pollresult';
+
 const App: React.FC = () => {
-  const [page, setPage] = useState<'whiteboard' | 'quiz' | 'reveal' | 'result' | 'dashboard' | 'summary' | 'truefalse' | 'truefalsecorrect' | 'truefalseresult' | 'poll' | 'pollresult'>('quiz');
-  const [currentColor, setCurrentColor] = useState('#222');
-  const [currentWidth, setCurrentWidth] = useState(4);
-  const [currentMode, setCurrentMode] = useState('draw');
-  const [quiz, setQuiz] = useState<QuizQuestion[]>([]);
-  const [reveal, setReveal] = useState(false);
-  const [whiteboardKey, setWhiteboardKey] = useState(0);
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [currentView, setCurrentView] = useState<ViewState>('quiz');
+  const [currentQuestion, setCurrentQuestion] = useState<QuizQuestion | null>(null);
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
+  const [trueFalseQuestions, setTrueFalseQuestions] = useState<TrueFalseQuestion[]>([]);
+  const [polls, setPolls] = useState<PollSummary[]>([]);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<{ email: string; name: string; username: string } | null>(null);
+  const [themeName, setThemeName] = useState<ThemeName>('default');
   const [showTemplateSubmenu, setShowTemplateSubmenu] = useState(false);
   const [showThemeSubmenu, setShowThemeSubmenu] = useState(false);
   const [showToolsSubmenu, setShowToolsSubmenu] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('isLoggedIn') === 'true');
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [showLogin, setShowLogin] = useState(false);
-  const [isGuest, setIsGuest] = useState(() => localStorage.getItem('isGuest') === 'true');
-  const [currentQuestion, setCurrentQuestion] = useState<QuizQuestion | null>(null);
-  const [selectedCorrect, setSelectedCorrect] = useState<number[]>([]);
-  const [showSummary, setShowSummary] = useState(false);
-  const [revealHandler, setRevealHandler] = useState<(() => void) | null>(null);
-  const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
-  const [lastQuizPage, setLastQuizPage] = useState<'quiz' | 'reveal' | 'result' | 'truefalse'>('quiz');
+  const [showLanguageSubmenu, setShowLanguageSubmenu] = useState(false);
+  const [currentLanguage, setCurrentLanguage] = useState('en');
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [hideButtons, setHideButtons] = useState(false);
+  const [screenshotMode, setScreenshotMode] = useState(false);
+  const [whiteboardKey, setWhiteboardKey] = useState(0);
+  const [currentColor, setCurrentColor] = useState('#222');
+  const [currentWidth, setCurrentWidth] = useState(4);
+  const [currentMode, setCurrentMode] = useState('draw');
   const [quizClearKey, setQuizClearKey] = useState(0);
   const [quizMode, setQuizMode] = useState<'draw' | 'eraser'>('draw');
-  const [themeName, setThemeName] = useState<ThemeName>('default');
-  const [showLanguageSubmenu, setShowLanguageSubmenu] = useState(false);
-  const [currentLanguage, setCurrentLanguage] = useState('nl');
-  const [trueFalseQuestions, setTrueFalseQuestions] = useState<TrueFalseQuestion[]>([]);
-  const [currentTrueFalseQuestion, setCurrentTrueFalseQuestion] = useState<TrueFalseQuestion | null>(null);
-  const [showTrueFalseResult, setShowTrueFalseResult] = useState(false);
+  const [selectedCorrect, setSelectedCorrect] = useState<number[]>([]);
+  const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
+  const [isGuest, setIsGuest] = useState<boolean>(false);
+  const [userEmail, setUserEmail] = useState<string>('');
+  const [showLogin, setShowLogin] = useState<boolean>(false);
+  const [showEmailModal, setShowEmailModal] = useState<boolean>(false);
+  const [email, setEmail] = useState<string>('');
+  const [error, setError] = useState<string>('');
+  const [sending, setSending] = useState<boolean>(false);
+  const [questionRef] = useState<React.RefObject<any>>(React.createRef());
+  const [pollCreationRef] = useState<React.RefObject<any>>(React.createRef());
   const [selectedTrueFalseAnswer, setSelectedTrueFalseAnswer] = useState<boolean | null>(null);
-  const [trueFalseVotes, setTrueFalseVotes] = useState<{ questionDrawing: any; answer: boolean; votes: { true: number; false: number } }[]>([]);
-  const [currentTrueFalseVote, setCurrentTrueFalseVote] = useState<boolean | null>(null);
   const [currentTrueFalseVotes, setCurrentTrueFalseVotes] = useState<{ true: number; false: number }>({ true: 0, false: 0 });
+  const [currentTrueFalseQuestion, setCurrentTrueFalseQuestion] = useState<any>(null);
+  const [trueFalseVotes, setTrueFalseVotes] = useState<any[]>([]);
   const [currentPoll, setCurrentPoll] = useState<any>(null);
-  const [pollQuestion, setPollQuestion] = useState('');
-  const [pollOptions, setPollOptions] = useState([
-    { id: 0, text: '', votes: 0, drawing: null },
-    { id: 1, text: '', votes: 0, drawing: null }
-  ]);
-  const questionRef = useRef<any>(null);
-  const pollCreationRef = useRef<PollCreationHandle>(null);
   const [pollSummaries, setPollSummaries] = useState<any[]>([]);
-  const [showEmailModal, setShowEmailModal] = useState(false);
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
-  const [sending, setSending] = useState(false);
-  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState<string>('');
+  const [lastQuizPage, setLastQuizPage] = useState<ViewState>('home');
+  const [quizSummaryReloadKey, setQuizSummaryReloadKey] = useState(0);
+  const [quizId, setQuizId] = useState<string | null>(null);
+  const summaryRef = useRef<HTMLDivElement>(null);
+
+  // On app load, use quizId from localStorage if present
+  useEffect(() => {
+    const storedQuizId = localStorage.getItem('currentQuizId');
+    if (storedQuizId) {
+      setQuizId(storedQuizId);
+    }
+  }, []);
+
+  // When starting a new quiz, generate and persist a new quizId
+  const startNewQuiz = () => {
+    const newQuizId = String(Date.now());
+    setQuizId(newQuizId);
+    localStorage.setItem('currentQuizId', newQuizId);
+    setQuestions([]);
+    setTrueFalseQuestions([]);
+    setPolls([]);
+    setCurrentView('quiz');
+  };
+
+  // When quiz is finished or abandoned, clear quizId from localStorage
+  const finishQuiz = () => {
+    localStorage.removeItem('currentQuizId');
+    setQuizId(null);
+    setQuestions([]);
+    setTrueFalseQuestions([]);
+    setPolls([]);
+    setCurrentView('dashboard');
+  };
+
+  // Check authentication status
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await axios.get('/api/check-auth');
+        if (response.data.authenticated) {
+          setIsAuthenticated(true);
+          setUser(response.data.user);
+          setUserEmail(response.data.user.email);
+        } else {
+          // Check if remember me is enabled
+          const rememberedEmail = localStorage.getItem('rememberedEmail');
+          const rememberMe = localStorage.getItem('rememberMe');
+          if (rememberedEmail && rememberMe === 'true') {
+            // Auto-login with remembered email
+            setShowLogin(true);
+          }
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+      }
+    };
+    checkAuth();
+  }, []);
+
+  // Save a single question to the backend for the current quiz and user
+  const saveQuestionToBackend = async (question: QuizQuestion) => {
+    const postData = {
+      quizId: quizId ? String(quizId) : String(Date.now()),
+      question: JSON.parse(JSON.stringify(question)),
+    };
+    await fetch('http://localhost:5000/api/quiz-question', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify(postData),
+    });
+  };
+
+  // Save the entire quiz to the backend for the current user and quizId
+  const saveQuizSummary = async (newQuestions = questions, newTrueFalseQuestions = trueFalseQuestions, newPolls = polls) => {
+    if (!quizId || newQuestions.length === 0) return; // Only save if quizId exists and there are questions
+    const postData = {
+      quizId: String(quizId),
+      quizName: `Quiz ${quizId}`,
+      questions: JSON.parse(JSON.stringify(newQuestions)),
+      trueFalseQuestions: JSON.parse(JSON.stringify(newTrueFalseQuestions)),
+      polls: JSON.parse(JSON.stringify(newPolls)),
+      theme: themeName
+    };
+    await fetch('http://localhost:5000/api/quiz-summaries', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify(postData),
+    });
+  };
+
+  // Pas handleSaveQuestion aan zodat hij alleen de state bijwerkt
+  const handleSaveQuestion = (question: QuizQuestion) => {
+    setCurrentQuestion(question);
+    setQuestions(prev => {
+      const updated = [...prev, question];
+      saveQuizSummary(updated, trueFalseQuestions, polls);
+      return updated;
+    });
+    setCurrentView('reveal');
+    setQuizSummaryReloadKey(prev => prev + 1);
+  };
 
   const theme = createTheme({
     palette: {
@@ -860,6 +978,16 @@ const App: React.FC = () => {
       'coming_soon': 'Binnenkort beschikbaar',
       'contact': 'Contact',
       'for_questions_feedback': 'Voor vragen of feedback:',
+      'true_false_questions': 'Waar/Niet waar vragen',
+      'polls': 'Peilingen',   
+      'all_questions': 'Alle vragen',
+      'delete_all': 'Alles wissen',
+      'delete_all_confirm': 'Weet u zeker dat u alles wilt wissen? Deze actie kan niet ongedaan worden gemaakt.',
+      'no_questions': 'Geen vragen gevonden.',
+      'share_summary': 'Deel samenvatting',
+      'share_summary_description': 'Deel de quiz samenvatting via email.',
+      'share_summary_title': 'Quiz samenvatting', 
+      'quiz_questions': 'Quiz vragen',
     },
     en: {
       'theme': 'Theme',
@@ -924,6 +1052,16 @@ const App: React.FC = () => {
       'coming_soon': 'Coming soon',
       'contact': 'Contact',
       'for_questions_feedback': 'For questions or feedback:',
+      'true_false_questions': 'True/False Questions',
+      'polls': 'Polls', 
+      'all_questions': 'All Questions',
+      'quiz_questions': 'Quiz Questions',
+      'delete_all': 'Delete All',
+      'delete_all_confirm': 'Are you sure you want to delete all questions? This action cannot be undone.',
+      'no_questions': 'No questions found.',  
+      'share_summary': 'Share Summary',
+      'share_summary_description': 'Share the quiz summary via email.',
+      'share_summary_title': 'Quiz Summary',
     },
     de: {
       'theme': 'Thema',
@@ -940,8 +1078,8 @@ const App: React.FC = () => {
       'show_summary': 'Zusammenfassung',
       'show_result': 'Ergebnis anzeigen',
       'show_next': 'Nächste Frage',
-      'reveal_correct': 'Korrekte Antworten anzeigen',
-      'reveal_correct_answer': 'Korrekte Antwort anzeigen',
+      'reveal_correct': 'Richtige Antworten anzeigen',
+      'reveal_correct_answer': 'Richtige Antwort anzeigen',
       'quiz_creation': 'Quiz erstellen',
       'quiz_result': 'Quiz Ergebnis',
       'quiz_summary': 'Quiz Zusammenfassung',
@@ -988,6 +1126,16 @@ const App: React.FC = () => {
       'coming_soon': 'Kommt bald',
       'contact': 'Kontakt',
       'for_questions_feedback': 'Für Fragen oder Feedback:',
+      'true_false_questions': 'Wahr/Falsch Fragen',
+      'polls': 'Umfragen',
+      'all_questions': 'Alle Fragen', 
+      'quiz_questions': 'Quiz Fragen',
+      'delete_all': 'Alle löschen',
+      'delete_all_confirm': 'Sind Sie sicher, dass Sie alle Fragen löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.',  
+      'no_questions': 'Keine Fragen gefunden.', 
+      'share_summary': 'Zusammenfassung teilen',
+      'share_summary_description': 'Teilen Sie die Quiz-Zusammenfassung per E-Mail.', 
+      'share_summary_title': 'Quiz Zusammenfassung',
     },
     fr: {
       'theme': 'Thème',
@@ -1004,8 +1152,8 @@ const App: React.FC = () => {
       'show_summary': 'Voir le résumé',
       'show_result': 'Voir le résultat',
       'show_next': 'Question suivante',
-      'reveal_correct': 'Révéler les bonnes réponses',
-      'reveal_correct_answer': 'Révéler la bonne réponse',
+      'reveal_correct': 'Afficher les bonnes réponses',
+      'reveal_correct_answer': 'Afficher la bonne réponse',
       'quiz_creation': 'Création du quiz',
       'quiz_result': 'Résultat du quiz',
       'quiz_summary': 'Résumé du quiz',
@@ -1051,59 +1199,21 @@ const App: React.FC = () => {
       'coming_soon': 'Bientôt disponible',
       'contact': 'Contact',
       'for_questions_feedback': 'Pour des questions ou des retours :',
+      'true_false_questions': 'Questions Vrai/Faux',
+      'polls': 'Sondages',
+      'all_questions': 'Toutes les questions',	
+      'quiz_questions': 'Questions du quiz',
+      'delete_all': 'Tout supprimer',
+      'delete_all_confirm': 'Êtes-vous sûr de vouloir supprimer toutes les questions ? Cette action ne peut pas être annulée.', 
+      'share_summary': 'Partager la résumé du quiz',  
+      'no_questions': 'Aucune question trouvée.',
+      'share_summary_description': 'Partagez la résumé du quiz par email.', 
+      'share_summary_title': 'Résumé du quiz',
     },
   };
   function t(key: string) {
     return translations[currentLanguage][key] || key;
   }
-
-  // Save a question to the quiz
-  const handleSaveQuestion = (question: QuizQuestion) => {
-    setCurrentQuestion(question);
-    setPage('reveal');
-  };
-
-  // Update correct answer for a question
-  const handleSetCorrectAnswer = (answerIds: number[]) => {
-    if (currentQuestion) {
-      const updatedQuestion = {
-        ...currentQuestion,
-        answers: currentQuestion.answers.map(answer => ({
-          ...answer,
-          isCorrect: answerIds.includes(answer.id)
-        }))
-      };
-      setSelectedCorrect(answerIds);
-      setQuiz(prev => [...prev, updatedQuestion]);
-      setCurrentQuestion(updatedQuestion);
-      setPage('result');
-    }
-  };
-
-  // Register reveal handler
-  React.useEffect(() => {
-    if (page === 'reveal') {
-      setRevealHandler(() => {
-        if ((window as any).__quizRevealHandler) {
-          (window as any).__quizRevealHandler();
-        }
-      });
-    } else {
-      setRevealHandler(null);
-    }
-  }, [page]);
-
-  // Next Question: reset alles
-  const handleNextQuestion = () => {
-    setCurrentQuestion(null);
-    setSelectedCorrect([]);
-    setPage('quiz');
-  };
-
-  // Back naar reveal
-  const handleBackToReveal = () => {
-    setPage('reveal');
-  };
 
   const openTemplateMenu = () => { setShowTemplateSubmenu(true); setShowThemeSubmenu(false); };
   const openThemeMenu = () => { setShowThemeSubmenu(true); setShowTemplateSubmenu(false); };
@@ -1125,94 +1235,199 @@ const App: React.FC = () => {
     setShowLanguageSubmenu(false);
   };
 
-  function handleLogin(email: string, guest?: boolean) {
-    setIsLoggedIn(true);
-    setUserEmail(email);
-    setIsGuest(!!guest);
-    localStorage.setItem('isLoggedIn', 'true');
-    if (guest) localStorage.setItem('isGuest', 'true');
-    else localStorage.removeItem('isGuest');
-    setShowLogin(false);
-  }
-  function handleLogout() {
-    setIsLoggedIn(false);
-    setUserEmail(null);
+  const handleLogout = () => {
+    setIsAuthenticated(false);
     setIsGuest(false);
+    setUserEmail('');
+    setUser(null);
+    setQuizId(null);
+    setQuizSummaryReloadKey(prev => prev + 1);
+
+    // Remove all auth and remember me data
+    localStorage.removeItem('rememberedEmail');
+    localStorage.removeItem('rememberMe');
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('isGuest');
-  }
+    localStorage.removeItem('userData');
 
-  // Add handler for True/False questions
-  const handleSaveTrueFalseQuestion = (question: { questionDrawing: any; answer: boolean; votes: { true: number; false: number } }) => {
-    setCurrentTrueFalseQuestion({ ...question, votes: currentTrueFalseVotes });
-    setTrueFalseVotes(prev => {
-      const idx = prev.findIndex(q => JSON.stringify(q.questionDrawing) === JSON.stringify(question.questionDrawing));
-      if (idx !== -1) {
-        const updated = [...prev];
-        updated[idx] = { ...updated[idx], votes: currentTrueFalseVotes };
-        return updated;
-      } else {
-        return [...prev, { questionDrawing: question.questionDrawing, answer: question.answer, votes: currentTrueFalseVotes }];
-      }
-    });
-    setPage('truefalsecorrect');
+    // Clear quiz data for a clean guest session
+    setQuestions([]);
+    setTrueFalseQuestions([]);
+    setPolls([]);
+
+    // Call backend logout to clear cookies
+    fetch('http://localhost:5000/api/logout', { method: 'POST', credentials: 'include' });
   };
 
-  const handleTrueFalseVote = (vote: boolean) => {
-    setCurrentTrueFalseVote(vote);
-    setPage('truefalsecorrect');
-  };
-
-  const handleTrueFalseCorrect = () => {
-    if (currentTrueFalseQuestion && currentTrueFalseVote !== null) {
-      setTrueFalseVotes(prev => [
-        ...prev,
-        {
-          questionDrawing: currentTrueFalseQuestion.questionDrawing,
-          answer: currentTrueFalseQuestion.answer,
-          votes: currentTrueFalseVotes
-        }
-      ]);
-      setCurrentTrueFalseQuestion(null);
-      setCurrentTrueFalseVote(null);
-      setPage('summary');
+  const handleSetCorrectAnswer = async (answerIds: number[]) => {
+    if (currentQuestion) {
+      const updatedQuestion = {
+        ...currentQuestion,
+        answers: currentQuestion.answers.map(answer => ({
+          ...answer,
+          isCorrect: answerIds.includes(answer.id)
+        }))
+      };
+      setSelectedCorrect(answerIds);
+      setQuestions(prev => [...prev, updatedQuestion]);
+      setCurrentQuestion(updatedQuestion);
+      await saveQuestionToBackend(updatedQuestion); // Save after correct answer is set
+      saveQuizSummary();
+      setCurrentView('result');
     }
   };
 
   const handleDeleteQuizQuestion = (index: number) => {
-    setQuiz(prev => prev.filter((_, i) => i !== index));
+    setQuestions(prev => {
+      const updated = prev.filter((_, i) => i !== index);
+      saveQuizSummary(updated, trueFalseQuestions, polls);
+      return updated;
+    });
   };
 
   const handleDeleteTrueFalse = (index: number) => {
-    setTrueFalseVotes(prev => prev.filter((_, i) => i !== index));
+    setTrueFalseQuestions(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleDeletePoll = (index: number) => {
-    setPollSummaries(prev => prev.filter((_, i) => i !== index));
+    setPolls(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSaveTrueFalseQuestion = async (question: any) => {
+    setCurrentTrueFalseQuestion(question);
+    // Removed backend save to prevent duplicate saves
+    setTrueFalseVotes((prev: any[]) => [...prev, question]);
+  };
+
+  // Pas handleNextQuestion aan zodat hij opslaat vóór hij naar summary gaat
+  const handleNextQuestion = async () => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1);
+      setCurrentQuestion(questions[currentQuestionIndex + 1]);
+      setCurrentView('quiz');
+    } else {
+      await saveQuizSummary();
+      setCurrentView('summary');
+    }
+  };
+
+  const handleBackToReveal = () => {
+    setCurrentView('reveal');
+  };
+
+  const handleLogin = (email: string, isGuestParam?: boolean) => {
+    setUserEmail(email);
+    setIsGuest(!!isGuestParam);
+    setIsAuthenticated(true);
+    setShowLogin(false);
+    setQuizSummaryReloadKey(prev => prev + 1);
+    if (isGuestParam) {
+      // Remove any previous user data
+      localStorage.removeItem('rememberedEmail');
+      localStorage.removeItem('rememberMe');
+      localStorage.removeItem('userData');
+      localStorage.setItem('isGuest', 'true');
+      localStorage.setItem('isLoggedIn', 'true');
+      setQuestions([]);
+      setTrueFalseQuestions([]);
+      setPolls([]);
+    }
   };
 
   const handleShare = async () => {
-    if (!userEmail) {
-      setError('Please log in to share.');
+    if (!email) {
+      setError('Please enter an email address');
       return;
     }
     setSending(true);
     try {
-      // Implement the logic to share the quiz summary via email
-      // This is a placeholder and should be replaced with the actual implementation
-      console.log('Sharing quiz summary via email');
+      // Hide the email modal before screenshot
       setShowEmailModal(false);
-    } catch (e) {
-      console.error('Error sharing quiz summary:', e);
-      setError('An error occurred while sharing.');
+      await new Promise(res => setTimeout(res, 200));
+
+      // Get all question containers
+      const questionContainers = Array.from(document.querySelectorAll('.question-container'));
+      const trueFalseContainers = Array.from(document.querySelectorAll('.true-false-container'));
+      const pollContainers = Array.from(document.querySelectorAll('.poll-container'));
+      
+      // Create a container for all screenshots
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      container.style.width = '800px'; // Fixed width for consistency
+      container.style.background = '#ffffff';
+      container.style.padding = '20px';
+      document.body.appendChild(container);
+
+      // Add title
+      const title = document.createElement('h1');
+      title.textContent = 'Quiz Summary';
+      title.style.textAlign = 'center';
+      title.style.marginBottom = '30px';
+      title.style.color = '#333';
+      container.appendChild(title);
+
+      // Correctly append each section clone to the main container
+      const allSections = [
+        ...questionContainers,
+        ...trueFalseContainers,
+        ...pollContainers
+      ];
+      for (const section of allSections) {
+        const clone = section.cloneNode(true) as HTMLElement;
+        clone.style.width = '100%';
+        clone.style.marginBottom = '30px';
+        clone.style.border = '1px solid #ddd';
+        clone.style.borderRadius = '8px';
+        clone.style.padding = '20px';
+        clone.style.background = '#fff';
+        container.appendChild(clone);
+      }
+
+      // Capture the combined screenshot
+      const dataUrl = await domtoimage.toPng(container, {
+        quality: 0.95,
+        bgcolor: '#ffffff',
+        style: {
+          'transform': 'none',
+          'position': 'absolute',
+          'top': '0',
+          'left': '0'
+        }
+      });
+
+      // Clean up
+      document.body.removeChild(container);
+
+      console.log('Screenshot data URL:', dataUrl);
+      // 2. Upload to Cloudinary
+      const formData = new FormData();
+      formData.append('file', dataUrl);
+      formData.append('upload_preset', 'ml_default');
+      const uploadRes = await axios.post('https://api.cloudinary.com/v1_1/djmejezed/image/upload', formData, { withCredentials: false });
+      const imageUrl = uploadRes.data.secure_url;
+      console.log('Cloudinary image URL:', imageUrl);
+      // 3. Send via EmailJS
+      await emailjs.send(
+        EMAILJS_CONFIG.SERVICE_ID,
+        EMAILJS_CONFIG.TEMPLATE_ID,
+        {
+          to_email: email,
+          image_url: imageUrl,
+        },
+        EMAILJS_CONFIG.PUBLIC_KEY
+      );
+      setEmail('');
+      setError('');
+    } catch (err) {
+      setError('Failed to share summary. Please try again.');
+      console.error('Error sharing summary:', err);
+      setShowEmailModal(true);
     } finally {
       setSending(false);
     }
   };
-
-  if (!isLoggedIn) {
-    return <Login onLogin={handleLogin} />;
-  }
 
   return (
     <ThemeProvider theme={theme}>
@@ -1236,7 +1451,7 @@ const App: React.FC = () => {
             <OceanWave style={{ bottom: '40px', animationDelay: '0.75s' }} />
           </OceanContainer>
         )}
-        {page === 'whiteboard' && (
+        {currentView === 'whiteboard' && (
           <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)' }}>
             <Whiteboard
               key={whiteboardKey}
@@ -1247,7 +1462,7 @@ const App: React.FC = () => {
             />
           </Box>
         )}
-        {page === 'quiz' && (
+        {currentView === 'quiz' && (
           <QuizCreation 
             onSaveQuestion={handleSaveQuestion} 
             onReveal={() => {}} 
@@ -1259,7 +1474,7 @@ const App: React.FC = () => {
             t={t}
           />
         )}
-        {page === 'reveal' && currentQuestion && (
+        {currentView === 'reveal' && currentQuestion && (
           <RevealCorrect
             question={currentQuestion}
             onSelectCorrect={handleSetCorrectAnswer}
@@ -1271,7 +1486,7 @@ const App: React.FC = () => {
             t={t}
           />
         )}
-        {page === 'result' && currentQuestion && selectedCorrect.length > 0 && (
+        {currentView === 'result' && currentQuestion && selectedCorrect.length > 0 && (
           <QuizResult
             question={currentQuestion}
             correctIds={selectedCorrect}
@@ -1279,26 +1494,26 @@ const App: React.FC = () => {
             t={t}
           />
         )}
-        {page === 'summary' && (
+        {currentView === 'summary' && (
           <QuizSummary
-            questions={quiz}
-            trueFalseQuestions={trueFalseVotes}
-            pollSummaries={pollSummaries}
+            key={quizSummaryReloadKey}
+            onClose={() => setCurrentView('quiz')}
             onDeleteQuizQuestion={handleDeleteQuizQuestion}
             onDeleteTrueFalse={handleDeleteTrueFalse}
             onDeletePoll={handleDeletePoll}
-            onClose={() => setPage('quiz')}
             themeName={themeName}
             t={t}
+            onShareEmail={() => {}}
+            summaryRef={summaryRef}
           />
         )}
-        {page === 'dashboard' && (
+        {currentView === 'dashboard' && (
           <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'60vh'}}>
             <h2>{t('dashboard_welcome')} {isGuest ? t('guest') : (userEmail || t('user'))}!</h2>
             <p>{isGuest ? t('dashboard_guest') : t('dashboard_loggedin')} {t('dashboard_text')}</p>
           </div>
         )}
-        {page === 'truefalse' && (
+        {currentView === 'truefalse' && (
           <TrueFalseCreation
             ref={questionRef}
             onSave={handleSaveTrueFalseQuestion}
@@ -1311,46 +1526,62 @@ const App: React.FC = () => {
             onVotesChange={setCurrentTrueFalseVotes}
           />
         )}
-        {page === 'truefalsecorrect' && currentTrueFalseQuestion && (
+        {currentView === 'truefalsecorrect' && currentTrueFalseQuestion && (
           <TrueFalseCorrect
             question={currentTrueFalseQuestion}
-            onBack={() => setPage('truefalse')}
-            onNext={(selected) => {
-              setTrueFalseVotes(prev => {
-                const idx = prev.findIndex(q => JSON.stringify(q.questionDrawing) === JSON.stringify(currentTrueFalseQuestion.questionDrawing));
-                if (idx !== -1) {
-                  const updated = [...prev];
-                  updated[idx] = {
-                    ...updated[idx],
-                    answer: selected
-                  };
-                  return updated;
-                } else {
-                  return [
-                    ...prev,
-                    {
-                      questionDrawing: currentTrueFalseQuestion.questionDrawing,
+            onBack={() => setCurrentView('truefalse')}
+            onNext={async (selected) => {
+              // Update the answer and save to backend
+              const updatedQuestion = {
+                ...currentTrueFalseQuestion,
                       answer: selected,
                       votes: currentTrueFalseVotes
-                    }
-                  ];
-                }
+              };
+              setTrueFalseQuestions(prev => [...prev, updatedQuestion]);
+              setCurrentTrueFalseQuestion(updatedQuestion);
+              // Save to backend
+              const postData = {
+                quizId: quizId ? String(quizId) : String(Date.now()),
+                question: JSON.parse(JSON.stringify(updatedQuestion)),
+              };
+              await fetch('http://localhost:5000/api/quiz-question', {
+                method: 'POST',
+                headers: {
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify(postData),
               });
-              setPage('summary');
+              setCurrentView('summary');
             }}
             themeName={themeName}
             t={t}
           />
         )}
-        {page === 'poll' && (
+        {currentView === 'poll' && (
           <PollCreation
             ref={pollCreationRef}
             themeName={themeName}
             t={t}
-            onSave={(poll) => {
+            onSave={async (poll) => {
               setCurrentPoll(poll);
               setPollSummaries(prev => [...prev, poll]);
-              setPage('pollresult');
+              // Save poll to backend
+              const postData = {
+                quizId: quizId ? String(quizId) : String(Date.now()),
+                question: JSON.parse(JSON.stringify(poll)),
+              };
+              await fetch('http://localhost:5000/api/quiz-question', {
+                method: 'POST',
+                headers: {
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify(postData),
+              });
+              setCurrentView('pollresult');
             }}
             question={pollQuestion}
             setQuestion={setPollQuestion}
@@ -1358,20 +1589,20 @@ const App: React.FC = () => {
             saveLabel={t('save_poll')}
           />
         )}
-        {page === 'pollresult' && currentPoll && (
+        {currentView === 'pollresult' && currentPoll && (
           <PollResult
             poll={currentPoll}
             themeName={themeName}
             t={t}
             onBack={() => {
-              setPage('poll');
+              setCurrentView('poll');
             }}
           />
         )}
       </MainContent>
       {showToolsSubmenu ? (
-        <SubmenuFooterBar whiteboard={page === 'whiteboard'} themeName={themeName}>
-          {page === 'whiteboard' ? (
+        <SubmenuFooterBar whiteboard={currentView === 'whiteboard'} themeName={themeName}>
+          {currentView === 'whiteboard' ? (
             <>
               <FooterButton themeName={themeName} title={t('draw')} onClick={() => { setCurrentMode('draw'); closeSubmenus(); }}>
                 <CreateIcon />
@@ -1500,29 +1731,29 @@ const App: React.FC = () => {
           )}
         </SubmenuFooterBar>
       ) : showThemeSubmenu ? (
-        <SubmenuFooterBar whiteboard={page === 'whiteboard'} themeName={themeName}>
+        <SubmenuFooterBar whiteboard={currentView === 'whiteboard'} themeName={themeName}>
           <FooterButton themeName={themeName} title={t('default')} onClick={() => { setThemeName('default'); closeSubmenus(); }}><PaletteIcon /><span style={{fontSize:'0.7rem'}}>{t('default')}</span></FooterButton>
           <FooterButton themeName={themeName} title={t('christmas')} onClick={() => { setThemeName('christmas'); closeSubmenus(); }}><AcUnitIcon /><span style={{fontSize:'0.7rem'}}>{t('christmas')}</span></FooterButton>
           <FooterButton themeName={themeName} title={t('dark')} onClick={() => { setThemeName('dark'); closeSubmenus(); }}><WhatshotIcon /><span style={{fontSize:'0.7rem'}}>{t('dark')}</span></FooterButton>
-          <FooterButton themeName={themeName} title={t('summer')} onClick={() => { setThemeName('summer'); closeSubmenus(); }}><HolidayVillageIcon /><span style={{fontSize:'0.7rem'}}>{t('summer')}</span></FooterButton>
-          <FooterButton themeName={themeName} title={t('space')} onClick={() => { setThemeName('space'); closeSubmenus(); }}><WhatshotIcon /><span style={{fontSize:'0.7rem'}}>{t('space')}</span></FooterButton>
+          <FooterButton themeName={themeName} title={t('summer')} onClick={() => { setThemeName('summer'); closeSubmenus(); }}><WbSunnyIcon /><span style={{fontSize:'0.7rem'}}>{t('summer')}</span></FooterButton>
+          <FooterButton themeName={themeName} title={t('space')} onClick={() => { setThemeName('space'); closeSubmenus(); }}><PublicIcon /><span style={{fontSize:'0.7rem'}}>{t('space')}</span></FooterButton>
           <FooterButton themeName={themeName} title={t('back')} onClick={closeSubmenus}><ArrowForwardIosIcon style={{transform:'rotate(180deg)'}} /><span style={{fontSize:'0.7rem'}}>{t('back')}</span></FooterButton>
         </SubmenuFooterBar>
       ) : showTemplateSubmenu ? (
-        <SubmenuFooterBar whiteboard={page === 'whiteboard'} themeName={themeName}>
-          <FooterButton themeName={themeName} title={t('quiz')} onClick={() => { setPage('quiz'); closeSubmenus(); }}>
+        <SubmenuFooterBar whiteboard={currentView === 'whiteboard'} themeName={themeName}>
+          <FooterButton themeName={themeName} title={t('quiz')} onClick={() => { setCurrentView('quiz'); closeSubmenus(); }}>
             <QuizIcon />
             <span style={{fontSize:'0.7rem'}}>{t('quiz')}</span>
           </FooterButton>
-          <FooterButton themeName={themeName} title={t('whiteboard')} onClick={() => { setPage('whiteboard'); closeSubmenus(); }}>
+          <FooterButton themeName={themeName} title={t('whiteboard')} onClick={() => { setCurrentView('whiteboard'); closeSubmenus(); }}>
             <ViewModuleIcon />
             <span style={{fontSize:'0.7rem'}}>{t('whiteboard')}</span>
           </FooterButton>
-          <FooterButton themeName={themeName} title={t('truefalse')} onClick={() => { setPage('truefalse'); closeSubmenus(); }}>
+          <FooterButton themeName={themeName} title={t('truefalse')} onClick={() => { setCurrentView('truefalse'); closeSubmenus(); }}>
             <BallotIcon />
             <span style={{fontSize:'0.7rem'}}>{t('truefalse')}</span>
           </FooterButton>
-          <FooterButton themeName={themeName} title={t('poll')} onClick={() => { setPage('poll'); closeSubmenus(); }}>
+          <FooterButton themeName={themeName} title={t('poll')} onClick={() => { setCurrentView('poll'); closeSubmenus(); }}>
             <BallotIcon />
             <span style={{fontSize:'0.7rem'}}>{t('poll')}</span>
           </FooterButton>
@@ -1532,7 +1763,7 @@ const App: React.FC = () => {
           </FooterButton>
         </SubmenuFooterBar>
       ) : showLanguageSubmenu ? (
-        <SubmenuFooterBar whiteboard={page === 'whiteboard'} themeName={themeName}>
+        <SubmenuFooterBar whiteboard={currentView === 'whiteboard'} themeName={themeName}>
           {languages.map(lang => (
             <FooterButton
               key={lang.code}
@@ -1547,7 +1778,7 @@ const App: React.FC = () => {
           <FooterButton themeName={themeName} title={t('back')} onClick={closeSubmenus}><ArrowForwardIosIcon style={{transform:'rotate(180deg)'}} /><span style={{fontSize:'0.7rem'}}>{t('back')}</span></FooterButton>
         </SubmenuFooterBar>
       ) : (
-        <FooterBar whiteboard={page === 'whiteboard'} themeName={themeName}>
+        <FooterBar whiteboard={currentView === 'whiteboard'} themeName={themeName}>
           <FooterButton themeName={themeName} title={t('theme')} onClick={openThemeMenu}><PaletteIcon /><span style={{fontSize:'0.7rem'}}>{t('theme')}</span></FooterButton>
           <FooterButton themeName={themeName} title={t('templates')} onClick={openTemplateMenu} style={{ position: 'relative' }}>
             <ViewModuleIcon />
@@ -1568,26 +1799,26 @@ const App: React.FC = () => {
           <FooterButton themeName={themeName} title={t('text_recog')}><TextFieldsIcon /><span style={{fontSize:'0.7rem'}}>{t('text_recog')}</span></FooterButton>
           <FooterButton themeName={themeName} title={t('keyboard')}><KeyboardIcon /><span style={{fontSize:'0.7rem'}}>{t('keyboard')}</span></FooterButton>
           <FooterButton themeName={themeName} title={t('help')} onClick={() => setShowHelpModal(true)}><HelpOutlineIcon /><span style={{fontSize:'0.7rem'}}>{t('help')}</span></FooterButton>
-          <FooterButton themeName={themeName} title={isLoggedIn ? (isGuest ? t('logout_guest') : t('logout')) : t('login')} onClick={isLoggedIn ? handleLogout : () => setShowLogin(true)}>
+          <FooterButton themeName={themeName} title={isAuthenticated ? (isGuest ? t('logout_guest') : t('logout')) : t('login')} onClick={isAuthenticated ? handleLogout : () => setShowLogin(true)}>
             <LoginIcon />
-            <span style={{fontSize:'0.7rem'}}>{isLoggedIn ? (isGuest ? t('logout_guest') : t('logout')) : t('login')}</span>
+            <span style={{fontSize:'0.7rem'}}>{isAuthenticated ? (isGuest ? t('logout_guest') : t('logout')) : t('login')}</span>
           </FooterButton>
-          {page !== 'whiteboard' && (
-            page === 'summary' ? (
+          {currentView !== 'whiteboard' && (
+            currentView === 'summary' ? (
               <>
-                <RevealButton themeName={themeName} onClick={() => setPage('quiz')}>{t('quiz_creation')}</RevealButton>
+                <RevealButton themeName={themeName} onClick={() => setCurrentView('quiz')}>{t('quiz_creation')}</RevealButton>
                 <RevealButton themeName={themeName} onClick={() => setShowEmailModal(true)}>{t('share_via_email')}</RevealButton>
-                <RevealButton themeName={themeName} onClick={() => setPage('quiz')}>{t('back')}</RevealButton>
+                <RevealButton themeName={themeName} onClick={() => setCurrentView('quiz')}>{t('back')}</RevealButton>
               </>
             ) : (
               <>
                 <RevealButton themeName={themeName} onClick={() => {
-                  if ((page as string) !== 'summary') {
-                    if (['quiz', 'reveal', 'result', 'truefalse'].includes(page as string)) setLastQuizPage(page as any);
-                    setPage('summary');
+                  if ((currentView as string) !== 'summary') {
+                    if (['quiz', 'reveal', 'result', 'truefalse'].includes(currentView as string)) setLastQuizPage(currentView as any);
+                    setCurrentView('summary');
                   }
                 }}>{t('show_summary')}</RevealButton>
-                {page === 'result' && (
+                {currentView === 'result' && (
                   <>
                     <RevealButton
                       themeName={themeName}
@@ -1603,7 +1834,7 @@ const App: React.FC = () => {
                     </RevealButton>
                   </>
                 )}
-                {page === 'reveal' && (
+                {currentView === 'reveal' && (
                   <>
                     <RevealButton
                       themeName={themeName}
@@ -1617,13 +1848,13 @@ const App: React.FC = () => {
                     </RevealButton>
                     <RevealButton
                       themeName={themeName}
-                      onClick={() => setPage('quiz')}
+                      onClick={() => setCurrentView('quiz')}
                     >
                       {t('back')}
                     </RevealButton>
                   </>
                 )}
-                {page === 'truefalsecorrect' && (
+                {currentView === 'truefalsecorrect' && (
                   <>
                     <RevealButton
                       themeName={themeName}
@@ -1637,37 +1868,37 @@ const App: React.FC = () => {
                     </RevealButton>
                     <RevealButton
                       themeName={themeName}
-                      onClick={() => setPage('truefalse')}
+                      onClick={() => setCurrentView('truefalse')}
                     >
                       {t('back')}
                     </RevealButton>
                   </>
                 )}
-                {page !== 'result' && page !== 'reveal' && page !== 'truefalsecorrect' && page !== 'poll' && (
+                {currentView !== 'result' && currentView !== 'reveal' && currentView !== 'truefalsecorrect' && currentView !== 'poll' && (
                   <RevealButton
                     themeName={themeName}
                     onClick={() => {
-                      if (page === 'quiz') {
+                      if (currentView === 'quiz') {
                         if ((window as any).__quizRevealHandler) (window as any).__quizRevealHandler();
-                      } else if (page === 'truefalse') {
+                      } else if (currentView === 'truefalse') {
                         if (selectedTrueFalseAnswer !== null) {
                           const questionDrawing = questionRef.current?.getPaths ? questionRef.current.getPaths() : null;
                           if (questionDrawing) {
                             handleSaveTrueFalseQuestion({ questionDrawing, answer: selectedTrueFalseAnswer, votes: { true: 0, false: 0 } });
-                            setPage('truefalsecorrect');
+                            setCurrentView('truefalsecorrect');
                           }
                         }
                       }
                     }}
-                    disabled={page === 'truefalse' && selectedTrueFalseAnswer === null}
+                    disabled={currentView === 'truefalse' && selectedTrueFalseAnswer === null}
                   >
-                    {currentLanguage === 'nl' ? 'Toon juiste antwoord' : 'Reveal correct answer'}
+                    {t('reveal_correct_answer')}
                   </RevealButton>
                 )}
               </>
             )
           )}
-          {page === 'poll' && (
+          {currentView === 'poll' && (
             <RevealButton
               themeName={themeName}
               onClick={() => pollCreationRef.current?.savePoll()}
@@ -1675,10 +1906,10 @@ const App: React.FC = () => {
               {t('save_poll')}
             </RevealButton>
           )}
-          {page === 'pollresult' && (
+          {currentView === 'pollresult' && (
             <RevealButton
               themeName={themeName}
-              onClick={() => setPage('poll')}
+              onClick={() => setCurrentView('poll')}
             >
               {t('back')}
             </RevealButton>

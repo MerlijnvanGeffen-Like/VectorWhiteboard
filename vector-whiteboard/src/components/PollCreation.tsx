@@ -471,7 +471,7 @@ const AddButton = styled.button<{ themeName: string }>`
   border: none;
   border-radius: 10px;
   width: 100%;
-  height: 80px;
+  min-height: 90px;
   cursor: pointer;
   transition: background 0.2s;
   backdrop-filter: blur(10px);
@@ -749,31 +749,35 @@ const PollCreation: React.ForwardRefRenderFunction<PollCreationHandle, PollCreat
         </QuestionBoard>
         <AnswersGrid>
           {options.map((opt, idx) => (
-            <AnswerBox key={opt.id} themeName={themeName}>
-              <AnswerNumber themeName={themeName}>{idx + 1}.</AnswerNumber>
-              <MiniWhiteboard
-                ref={el => { if (el) optionRefs.current[opt.id] = el; else delete optionRefs.current[opt.id]; }}
-                width={undefined}
-                height={75}
-                style={{ flex: 1, minWidth: 0, maxWidth: 'calc(100% - 60px)' }}
-                initialPaths={opt.drawing || []}
-              />
-              <VoteBox themeName={themeName}>
-                <VoteBtn up themeName={themeName} onClick={() => handleVote(opt.id, 1)} title="Upvote">
-                  <ArrowUpwardIcon fontSize="small" />
-                </VoteBtn>
-                <VoteScore themeName={themeName}>{opt.votes}</VoteScore>
-                <VoteBtn themeName={themeName} onClick={() => handleVote(opt.id, -1)} title="Downvote">
-                  <ArrowDownwardIcon fontSize="small" />
-                </VoteBtn>
-              </VoteBox>
-              {options.length > 2 && idx === options.length - 1 && (
-                <RemoveBtn themeName={themeName} title="Verwijder optie" onClick={() => handleRemoveOption(opt.id)}><span>-</span></RemoveBtn>
+            <React.Fragment key={opt.id}>
+              <AnswerBox themeName={themeName}>
+                <AnswerNumber themeName={themeName}>{idx + 1}.</AnswerNumber>
+                <MiniWhiteboard
+                  ref={el => { if (el) optionRefs.current[opt.id] = el; else delete optionRefs.current[opt.id]; }}
+                  width={undefined}
+                  height={75}
+                  style={{ flex: 1, minWidth: 0, maxWidth: 'calc(100% - 60px)' }}
+                  initialPaths={opt.drawing || []}
+                />
+                <VoteBox themeName={themeName}>
+                  <VoteBtn up themeName={themeName} onClick={() => handleVote(opt.id, 1)} title="Upvote">
+                    <ArrowUpwardIcon fontSize="small" />
+                  </VoteBtn>
+                  <VoteScore themeName={themeName}>{opt.votes}</VoteScore>
+                  <VoteBtn themeName={themeName} onClick={() => handleVote(opt.id, -1)} title="Downvote">
+                    <ArrowDownwardIcon fontSize="small" />
+                  </VoteBtn>
+                </VoteBox>
+                {options.length > 2 && idx === options.length - 1 && (
+                  <RemoveBtn themeName={themeName} title="Verwijder optie" onClick={() => handleRemoveOption(opt.id)}><span>-</span></RemoveBtn>
+                )}
+              </AnswerBox>
+              {canAddOption && idx === options.length - 1 && (
+                <AddButton themeName={themeName} onClick={handleAddOption}>+</AddButton>
               )}
-            </AnswerBox>
+            </React.Fragment>
           ))}
           {options.length % 2 === 1 && <div />} {/* For grid alignment */}
-          {canAddOption && <AddButton themeName={themeName} onClick={handleAddOption}>+</AddButton>}
         </AnswersGrid>
       </LargeQuizBox>
     </ViewportContainer>

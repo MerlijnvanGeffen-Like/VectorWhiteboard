@@ -1,10 +1,11 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import styled, { keyframes, css } from 'styled-components';
-import { QuizQuestion } from '../App';
+import { QuizQuestion as BaseQuizQuestion, AnswerData } from '../App';
 import MiniWhiteboard from './MiniWhiteboard';
 import { PieChart } from './QuizResult';
 import emailjs from '@emailjs/browser';
 import { EMAILJS_CONFIG } from '../config/emailjs';
+import { CLOUDINARY_CONFIG } from '../config/cloudinary';
 import domtoimage from 'dom-to-image-more';
 import axios from 'axios';
 
@@ -73,7 +74,9 @@ const ViewportContainer = styled.div<{ themeName: string }>`
   overflow: hidden;
   position: relative;
   background: ${({ themeName }) => 
-    themeName === 'dark' 
+    themeName === 'whiteboard'
+      ? '#fff'
+      : themeName === 'dark' 
       ? 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
       : themeName === 'christmas'
       ? 'linear-gradient(135deg, #2e7d32 100%)'
@@ -111,14 +114,17 @@ const TopLeftBlock = styled.div<{ themeName: string }>`
       : themeName === 'christmas'
       ? 'linear-gradient(135deg, #c62828 100%)'
       : themeName === 'summer'
-      ? 'linear-gradient(135deg, #FF8A00 0%, #FFB800 100%)'
+      ? 'linear-gradient(135deg, #FF6B6B 0%, #FFB800 100%)'
       : themeName === 'space'
-      ? 'linear-gradient(135deg, rgba(10, 10, 40, 0.95) 0%, rgba(15, 20, 50, 0.95) 100%)'
+      ? 'linear-gradient(135deg, #4B0082 0%, #6B48FF 100%)'
       : 'linear-gradient(135deg, #E20248 0%, #F6A71B 100%)'
   };
-  border-radius: 100px;
-  z-index: 1;
-  transform: rotate(-125deg);
+    border-radius: 100px;
+    z-index: 1;
+    transform: rotate(-125deg);
+    box-shadow: 0 4px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
 `;
 
 const BottomRightBlock = styled.div<{ themeName: string }>`
@@ -133,14 +139,17 @@ const BottomRightBlock = styled.div<{ themeName: string }>`
       : themeName === 'christmas'
       ? 'linear-gradient(135deg, #c62828 100%)'
       : themeName === 'summer'
-      ? 'linear-gradient(135deg, #4ECDC4 0%, #45B7D1 100%)'
+      ? 'linear-gradient(135deg, #4ECDC4 0%, #45B7D1 100%);'
       : themeName === 'space'
-      ? 'linear-gradient(135deg, rgba(10, 10, 40, 0.95) 0%, rgba(15, 20, 50, 0.95) 100%)'
+      ? 'linear-gradient(135deg, #FF8A00 0%, #FFB800 100%)'
       : 'linear-gradient(135deg, #E20248 0%, #F6A71B 100%)'
   };
-  border-radius: 100px;
-  z-index: 1;
-  transform: rotate(-45deg);
+    border-radius: 100px;
+    z-index: 1;
+    transform: rotate(-45deg);
+    box-shadow: 0 4px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
 `;
 
 const LargeQuizBox = styled.div<{ themeName: string }>`
@@ -159,19 +168,20 @@ const LargeQuizBox = styled.div<{ themeName: string }>`
       : themeName === 'christmas'
       ? 'linear-gradient(135deg, #c62828 100%)'
       : themeName === 'summer'
-      ? 'linear-gradient(135deg, rgba(78, 205, 196, 0.95) 0%, rgba(69, 183, 209, 0.95) 100%)'
+      ? 'linear-gradient(135deg, #FF8A00 0%, #FFB800 100%)'
       : themeName === 'space'
       ? 'linear-gradient(135deg, rgba(10, 10, 40, 0.95) 0%, rgba(15, 20, 50, 0.95) 100%)'
       : 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)'
   };
-  border-radius: 18px;
-  padding: 32px 32px 24px 32px;
-  box-shadow: 0 4px 32px rgba(0,0,0,0.08);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  z-index: 2;
-  backdrop-filter: blur(10px);
+    border-radius: 18px;
+    padding: 32px 32px 24px 32px;
+    box-shadow: 0 4px 32px rgba(0, 0, 0, 0.08);
+    display: flex
+;
+    flex-direction: column;
+    align-items: center;
+    z-index: 2;
+    backdrop-filter: blur(10px);
   border: 1px solid ${({ themeName }) => 
     themeName === 'dark' 
       ? 'rgba(255, 255, 255, 0.1)'
@@ -189,6 +199,7 @@ const Title = styled.h2`
   color: #fff;
   font-size: 2.2rem;
   font-weight: bold;
+  margin-top: 19px;
   margin-bottom: 18px;
   letter-spacing: 2px;
   text-align: center;
@@ -209,8 +220,9 @@ const ScrollArea = styled.div`
 `;
 
 const QuestionContainer = styled.div<{ themeName: string }>`
+  position: relative;
   margin-bottom: 24px;
-  padding: 24px;
+  padding: 0px;
   background: ${({ themeName }) => 
     themeName === 'dark' 
       ? '#424242'
@@ -331,7 +343,7 @@ const AnswerNumber = styled.div<AnswerNumberProps>`
   margin-right: 12px;
   color: ${({ isCorrect, themeName }) => {
     if (isCorrect) {
-      return '#4caf50'; // Always green for correct answers
+      return '#222'; // Always green for correct answers
     }
     return themeName === 'dark'
       ? '#fff'
@@ -387,42 +399,32 @@ const VoteScore = styled.div<VoteScoreProps>`
   }};
 `;
 
-interface TrueFalseQuestion {
+type QuizQuestion = BaseQuizQuestion & {
+  id: number;
+};
+
+type TrueFalseQuestion = {
+  id: number;
   questionDrawing: any;
   answer: boolean;
-}
+  votes: { true: number; false: number };
+};
 
-interface PollSummary {
+type PollSummary = {
+  id: number;
   question: any;
   options: { text: string; votes: number; drawing?: any }[];
-}
+};
 
 interface QuizSummaryProps {
-  questions: Array<{
-    questionDrawing: any;
-    answers: Array<{
-      id: number;
-      votes: number;
-      drawing?: any;
-      isCorrect?: boolean;
-    }>;
-  }>;
-  trueFalseQuestions: Array<{
-    questionDrawing: any;
-    answer: boolean;
-    votes?: {
-      true?: number;
-      false?: number;
-    };
-  }>;
-  pollSummaries?: PollSummary[];
   onClose: () => void;
   themeName: string;
   t: (key: string) => string;
-  onDeleteQuizQuestion?: (index: number) => void;
-  onDeleteTrueFalse?: (index: number) => void;
-  onDeletePoll?: (index: number) => void;
-  onShareEmail?: () => void;
+  onDeleteQuizQuestion: (index: number) => void;
+  onDeleteTrueFalse: (index: number) => void;
+  onDeletePoll: (index: number) => void;
+  onShareEmail: () => void;
+  summaryRef?: React.RefObject<HTMLDivElement>;
 }
 
 const BackButton = styled.button<{ themeName: string }>`
@@ -529,73 +531,35 @@ const VotesBadge = styled.div<VotesBadgeProps>`
       ? 'rgba(255, 255, 255, 0.1)'
       : 'rgba(255, 255, 255, 0.2)';
   }};
-`;
-
-const WinnerBox = styled(AnswerBox)`
-  background: linear-gradient(90deg, #ffe066 0%, #ffd700 100%) !important;
-  box-shadow: 0 0 32px 0 #ffd70088, 0 0 0 4px #fff6 !important;
-  border: 3px solid #ffd700 !important;
-  position: relative;
-`;
-
-const ConfettiRain = styled.div`
-  pointer-events: none;
-  position: absolute;
-  left: 0; top: 0; right: 0; bottom: 0;
-  z-index: 10;
-  overflow: hidden;
-`;
-
-const ConfettiPiece = styled.div<{
-  color: string;
-  left: number;
-  duration: number;
-  rotate: number;
-  shape: 'circle' | 'square' | 'triangle' | 'star';
-}>`
-  position: absolute;
-  top: -24px;
-  left: ${({ left }) => left}%;
-  width: ${({ shape }) => shape === 'star' ? '12px' : '8px'};
-  height: ${({ shape }) => shape === 'star' ? '12px' : '8px'};
-  background: ${({ color }) => color};
-  opacity: 0.92;
-  animation: confetti-fall ${({ duration }) => duration}s linear infinite;
-  transform: rotate(${({ rotate }) => rotate}deg);
-  clip-path: ${({ shape }) => {
-    switch (shape) {
-      case 'circle':
-        return 'circle(50% at 50% 50%)';
-      case 'square':
-        return 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)';
-      case 'triangle':
-        return 'polygon(50% 0%, 0% 100%, 100% 100%)';
-      case 'star':
-        return 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)';
-      default:
-        return 'circle(50% at 50% 50%)';
-    }
-  }};
-  @keyframes confetti-fall {
-    0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
-    80% { opacity: 1; }
-    100% { transform: translateY(180px) rotate(360deg) scale(0.95); opacity: 0.7; }
-  }
+  margin-left: 18px;
 `;
 
 const DeleteButton = styled.button<{ themeName: string }>`
-  background: #e20248;
-  color: #fff;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: ${({ themeName }) => 
+    themeName === 'dark' 
+      ? '#424242'
+      : themeName === 'christmas'
+      ? '#ab2424'
+      : themeName === 'summer'
+      ? '#FF8A00'
+      : themeName === 'space'
+      ? '#4B0082'
+      : 'linear-gradient(90deg, #ff416c 0%, #ff4b2b 100%)'
+  };
+  color: white;
   border: none;
   border-radius: 8px;
-  padding: 6px 16px;
-  font-size: 1rem;
-  font-weight: bold;
+  padding: 8px 16px;
   cursor: pointer;
-  margin-left: 16px;
-  transition: background 0.2s;
+  font-size: 0.9rem;
+  font-weight: bold;
+  transition: all 0.2s ease;
   &:hover {
-    background: #b8002f;
+    opacity: 0.9;
+    transform: scale(1.05);
   }
 `;
 
@@ -704,43 +668,17 @@ const Star = styled.div<{ size: number; x: number; y: number; delay: number; dur
 // Planet component
 const Planet = styled.div<{ position: 'top' | 'bottom' }>`
   position: absolute;
-  ${props => {
-    switch(props.position) {
-      case 'top':
-        return `
-          right: 5%;
-          top: 5%;
-          width: 180px;
-          height: 180px;
-          background: linear-gradient(45deg, #4B0082, #6B48FF);
-          box-shadow: 
-            inset -30px -30px 50px rgba(0,0,0,0.5),
-            0 0 50px rgba(107, 72, 255, 0.3);
-        `;
-      case 'bottom':
-        return `
-          left: 5%;
-          bottom: 5%;
-          width: 220px;
-          height: 220px;
-          background: linear-gradient(45deg, #FF8A00, #FFB800);
-          box-shadow: 
-            inset -30px -30px 50px rgba(0,0,0,0.5),
-            0 0 50px rgba(255, 184, 0, 0.3);
-        `;
-    }
-  }}
+  ${(props) =>
+    props.position === 'top'
+      ? `right: 5%; top: 5%; width: 180px; height: 180px; background: linear-gradient(45deg, #4B0082, #6B48FF); box-shadow: inset -30px -30px 50px rgba(0,0,0,0.5), 0 0 50px rgba(107, 72, 255, 0.3);`
+      : `left: 5%; bottom: 5%; width: 220px; height: 220px; background: linear-gradient(45deg, #FF8A00, #FFB800); box-shadow: inset -30px -30px 50px rgba(0,0,0,0.5), 0 0 50px rgba(255, 184, 0, 0.3);`}
   border-radius: 50%;
   animation: ${rotate} 60s linear infinite;
   z-index: 1;
-  
   &::after {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    top: 0; left: 0; right: 0; bottom: 0;
     border-radius: 50%;
     background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.1) 45%, transparent 50%);
   }
@@ -765,32 +703,241 @@ const Galaxy = styled.div<{ size: number; x: number; y: number; delay: number }>
   z-index: 0;
 `;
 
+// Place these after the AnswerBox definition, before QuizSummary:
+const WinnerBox = styled(AnswerBox)`
+  background: linear-gradient(90deg, #ffe066 0%, #ffd700 100%) !important;
+  box-shadow: 0 0 32px 0 #ffd70088, 0 0 0 4px #fff6 !important;
+  border: 3px solid #ffd700 !important;
+  position: relative;
+`;
+const ConfettiRain = styled.div`
+  pointer-events: none;
+  position: absolute;
+  left: 0; top: 0; right: 0; bottom: 0;
+  z-index: 10;
+  overflow: hidden;
+`;
+const ConfettiPiece = styled.div<{
+  color: string;
+  left: number;
+  duration: number;
+  rotate: number;
+  shape: 'circle' | 'square' | 'triangle' | 'star';
+}>`
+  position: absolute;
+  top: -24px;
+  left: ${({ left }) => left}%;
+  width: ${({ shape }) => shape === 'star' ? '12px' : '8px'};
+  height: ${({ shape }) => shape === 'star' ? '12px' : '8px'};
+  background: ${({ color }) => color};
+  opacity: 0.92;
+  animation: confetti-fall ${({ duration }) => duration}s linear infinite;
+  transform: rotate(${({ rotate }) => rotate}deg);
+  clip-path: ${({ shape }) => {
+    switch (shape) {
+      case 'circle':
+        return 'circle(50% at 50% 50%)';
+      case 'square':
+        return 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)';
+      case 'triangle':
+        return 'polygon(50% 0%, 0% 100%, 100% 100%)';
+      case 'star':
+        return 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)';
+      default:
+        return 'circle(50% at 50% 50%)';
+    }
+  }};
+  @keyframes confetti-fall {
+    0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+    80% { opacity: 1; }
+    100% { transform: translateY(180px) rotate(360deg) scale(0.95); opacity: 0.7; }
+  }
+`;
+
+const DeleteAllButton = styled.button<{ themeName: string }>`
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: ${({ themeName }) => 
+    themeName === 'dark' 
+      ? '#424242'
+      : themeName === 'christmas'
+      ? '#ab2424'
+      : themeName === 'summer'
+      ? '#FF8A00'
+      : themeName === 'space'
+      ? '#4B0082'
+      : 'linear-gradient(90deg, #ff416c 0%, #ff4b2b 100%)'
+  };
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  z-index: 1000;
+  &:hover {
+    opacity: 0.9;
+    transform: scale(1.05);
+  }
+`;
+
+const AnswerText = styled.div`
+  flex: 1;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const EmptyAnswers = styled.div`
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #E20248;
+  font-weight: 600;
+  font-size: 1.2rem;
+  padding: 24px 0;
+`;
+
 const QuizSummary: React.FC<QuizSummaryProps> = ({
-  questions,
-  trueFalseQuestions,
-  pollSummaries,
   onClose,
   themeName,
   t,
   onDeleteQuizQuestion,
   onDeleteTrueFalse,
   onDeletePoll,
-  onShareEmail
+  onShareEmail,
+  summaryRef
 }) => {
-  const summaryRef = useRef<HTMLDivElement>(null);
-  const [hideButtons, setHideButtons] = useState(false);
-  const [screenshotMode, setScreenshotMode] = useState(false);
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [trueFalseQuestions, setTrueFalseQuestions] = useState<TrueFalseQuestion[]>([]);
+  const [polls, setPolls] = useState<PollSummary[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Generate snowflakes for Christmas theme
+  // Load all questions for the user
+  useEffect(() => {
+    loadAllQuestions();
+  }, []);
+
+  const loadAllQuestions = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:5000/api/user-quizzes', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Failed to load questions');
+      }
+      const data = await response.json();
+      setQuestions(data.quiz_questions || []);
+      setTrueFalseQuestions(data.true_false_questions || []);
+      setPolls(data.polls || []);
+    } catch (error) {
+      setError('Failed to load questions');
+      setQuestions([]);
+      setTrueFalseQuestions([]);
+      setPolls([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteQuizQuestion = async (index: number) => {
+    try {
+      const question = questions[index];
+      const response = await fetch(`http://localhost:5000/api/quiz-question/${question.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        setQuestions(prev => prev.filter((_, i) => i !== index));
+      }
+    } catch (error) {
+      console.error('Error deleting question:', error);
+    }
+  };
+
+  const handleDeleteTrueFalse = async (index: number) => {
+    try {
+      const question = trueFalseQuestions[index];
+      const response = await fetch(`http://localhost:5000/api/quiz-question/${question.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        setTrueFalseQuestions(prev => prev.filter((_, i) => i !== index));
+      }
+    } catch (error) {
+      console.error('Error deleting true/false question:', error);
+    }
+  };
+
+  const handleDeletePoll = async (index: number) => {
+    try {
+      const poll = polls[index];
+      const response = await fetch(`http://localhost:5000/api/quiz-question/${poll.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        setPolls(prev => prev.filter((_, i) => i !== index));
+      }
+    } catch (error) {
+      console.error('Error deleting poll:', error);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (window.confirm(t('delete_all_confirm'))) {
+      try {
+        const response = await fetch('http://localhost:5000/api/quiz-questions/all', {
+          method: 'DELETE',
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+        if (response.ok) {
+          setQuestions([]);
+          setTrueFalseQuestions([]);
+          setPolls([]);
+        }
+      } catch (error) {
+        console.error('Error deleting all questions:', error);
+      }
+    }
+  };
+
   const snowflakes = themeName === 'christmas' ? Array.from({ length: 50 }, (_, i) => ({
     id: i,
     size: Math.random() * 4 + 2,
     left: Math.random() * 100,
     delay: Math.random() * 5
   })) : [];
-
-  // Genereer sterren alleen 1x per mount
-  const stars = useMemo(() => themeName === 'space' ? Array.from({ length: 200 }, (_, i) => ({
+  const stars = React.useMemo(() => themeName === 'space' ? Array.from({ length: 200 }, (_, i) => ({
     id: i,
     size: Math.random() * 2.2 + 0.8,
     x: Math.random() * 100,
@@ -798,9 +945,7 @@ const QuizSummary: React.FC<QuizSummaryProps> = ({
     delay: Math.random() * 10,
     duration: 8 + Math.random() * 7
   })) : [], [themeName]);
-
-  // Genereer sterrenstelsels
-  const galaxies = useMemo(() => themeName === 'space' ? Array.from({ length: 5 }, (_, i) => ({
+  const galaxies = React.useMemo(() => themeName === 'space' ? Array.from({ length: 5 }, (_, i) => ({
     id: i,
     size: 100 + Math.random() * 150,
     x: Math.random() * 100,
@@ -810,6 +955,15 @@ const QuizSummary: React.FC<QuizSummaryProps> = ({
 
   return (
     <ViewportContainer themeName={themeName}>
+      {themeName !== 'whiteboard' && <TopLeftBlock themeName={themeName} />}
+      {themeName !== 'whiteboard' && <BottomRightBlock themeName={themeName} />}
+      {themeName === 'christmas' && (
+        <SnowContainer>
+          {snowflakes.map(({id, ...props}) => (
+            <Snowflake key={id} {...props} />
+          ))}
+        </SnowContainer>
+      )}
       {themeName === 'space' && (
         <StarlightBackground>
           {galaxies.map(({id, ...galaxyProps}) => (
@@ -822,20 +976,6 @@ const QuizSummary: React.FC<QuizSummaryProps> = ({
           <Planet position="bottom" />
         </StarlightBackground>
       )}
-      {themeName === 'christmas' && (
-        <SnowContainer>
-          {snowflakes.map(flake => (
-            <Snowflake
-              key={flake.id}
-              size={flake.size}
-              left={flake.left}
-              delay={flake.delay}
-            />
-          ))}
-        </SnowContainer>
-      )}
-      <TopLeftBlock themeName={themeName} />
-      <BottomRightBlock themeName={themeName} />
       <div style={{
         zIndex: 3,
         color: 'white',
@@ -856,153 +996,203 @@ const QuizSummary: React.FC<QuizSummaryProps> = ({
       }}>
         {t('quiz_summary')}
       </div>
-      <LargeQuizBox themeName={themeName}>
-        <div ref={summaryRef} className="summary-content" style={{ width: '100%', overflowY: 'auto', padding: '0 16px' }}>
-          {questions.map((question, index) => (
-            <QuestionContainer
-              key={index}
-              themeName={themeName}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <QuestionTitle themeName={themeName}>{t('question')} {index + 1}</QuestionTitle>
-                {onDeleteQuizQuestion && (
-                  <DeleteButton themeName={themeName} onClick={() => onDeleteQuizQuestion(index)}>{t('delete')}</DeleteButton>
-                )}
-              </div>
-              <QuestionBoard>
-                <MiniWhiteboard
-                  initialPaths={question.questionDrawing || []}
-                  width={undefined}
-                  height={220}
-                  style={{ width: '100%' }}
-                />
-              </QuestionBoard>
-              <AnswersGrid>
-                {question.answers.filter(a => a.isCorrect).length === 0 ? (
-                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#E20248', fontWeight: 600, fontSize: '1.2rem', padding: '24px 0' }}>
-                    {t('no_correct_answers')}
-                  </div>
-                ) : (
-                  question.answers.filter(a => a.isCorrect).map((answer, i) => (
-                  <AnswerBox
-                    key={answer.id}
-                    isCorrect={answer.isCorrect}
-                    themeName={themeName}
-                  >
-                    <AnswerNumber isCorrect={answer.isCorrect} themeName={themeName}>
-                        {i + 1}.
-                    </AnswerNumber>
-                    {answer.drawing ? (
-                      <MiniWhiteboard
-                        initialPaths={answer.drawing || []}
-                        width={undefined}
-                        height={120}
-                        style={{ width: '100%' }}
-                      />
-                    ) : null}
-                      <VotesBadge themeName={themeName}>{answer.votes}</VotesBadge>
-                  </AnswerBox>
-                  ))
-                )}
-              </AnswersGrid>
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: 24 }}>
-                <PieChart
-                  data={question.answers.map((answer, i) => ({
-                    label: `${i + 1}`,
-                    value: answer.votes,
-                    isCorrect: answer.isCorrect
-                  }))}
-                  themeName={themeName}
-                  disableAnimation={screenshotMode}
-                />
-              </div>
-            </QuestionContainer>
-          ))}
-          {trueFalseQuestions.map((question, index) => (
-            <QuestionContainer key={`tf-${index}`} themeName={themeName}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <QuestionTitle themeName={themeName}>{t('true_false_question')} {index + 1}</QuestionTitle>
-                {onDeleteTrueFalse && (
-                  <DeleteButton themeName={themeName} onClick={() => onDeleteTrueFalse(index)}>{t('delete')}</DeleteButton>
-                )}
-              </div>
-              <QuestionBoard>
-                <MiniWhiteboard
-                  initialPaths={question.questionDrawing || []}
-                  width={undefined}
-                  height={220}
-                  style={{ width: '100%' }}
-                />
-              </QuestionBoard>
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: 24 }}>
-                <PieChart
-                  data={[
-                    { label: t('true'), value: question.votes?.true || 0, isCorrect: question.answer === true },
-                    { label: t('false'), value: question.votes?.false || 0, isCorrect: question.answer === false }
-                  ]}
-                  themeName={themeName}
-                  disableAnimation={screenshotMode}
-                />
-              </div>
-            </QuestionContainer>
-          ))}
-          {pollSummaries && pollSummaries.map((poll, pollIdx) => {
-            const maxVotes = poll.options.reduce((max, o) => o.votes > max ? o.votes : max, 0);
-            return (
-              <QuestionContainer key={`poll-${pollIdx}`} themeName={themeName}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <QuestionTitle themeName={themeName}>{`Poll ${pollIdx + 1}`}</QuestionTitle>
-                  {onDeletePoll && (
-                    <DeleteButton themeName={themeName} onClick={() => onDeletePoll(pollIdx)}>{t('delete')}</DeleteButton>
-                  )}
+      <LargeQuizBox ref={summaryRef} className="quiz-summary-main-box" themeName={themeName} style={{ marginTop: 64, position: 'relative', top: 0, left: '50%', transform: 'translate(-50%, 0)' }}>
+        <DeleteAllButton themeName={themeName} onClick={handleDeleteAll}>
+          {t('delete_all') || 'Delete All'}
+        </DeleteAllButton>
+        <ScrollArea>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '20px' }}>Loading...</div>
+          ) : (
+            <>
+              {questions.length > 0 && (
+                <div style={{ marginBottom: '2rem' }}>
+                  <h2 style={{ color: 'white', marginBottom: '1rem' }}>{t('quiz_questions')}</h2>
+                  {questions.map((question, index) => (
+                    <QuestionContainer key={`q-${index}`} themeName={themeName} className="question-container">
+                      <DeleteButton themeName={themeName} onClick={() => handleDeleteQuizQuestion(index)}>
+                        {t('delete')}
+                      </DeleteButton>
+                      <QuestionBoard>
+                        <MiniWhiteboard
+                          initialPaths={question.questionDrawing ?? []}
+                          width={undefined}
+                          height={220}
+                          style={{ width: '100%' }}
+                        />
+                      </QuestionBoard>
+                      <AnswersGrid>
+                        {(question.answers ?? []).map((answer, i) => {
+                          let isCorrect = false;
+                          if (typeof answer.isCorrect !== 'undefined') {
+                            isCorrect = !!answer.isCorrect;
+                          } else if ('correctAnswers' in question && Array.isArray((question as any).correctAnswers)) {
+                            const correctAnswers = (question as any).correctAnswers;
+                            isCorrect = correctAnswers.includes(i) || (typeof (answer as any).text !== 'undefined' && correctAnswers.includes((answer as any).text));
+                          } else if ('correctAnswer' in question) {
+                            const correctAnswer = (question as any).correctAnswer;
+                            isCorrect = correctAnswer === i || (typeof (answer as any).text !== 'undefined' && correctAnswer === (answer as any).text);
+                          }
+                          return (
+                            <AnswerBox
+                              key={i}
+                              isCorrect={isCorrect}
+                              themeName={themeName}
+                            >
+                              <AnswerNumber isCorrect={isCorrect} themeName={themeName}>
+                                {i + 1}.
+                              </AnswerNumber>
+                              {answer.drawing ? (
+                                <MiniWhiteboard
+                                  initialPaths={answer.drawing ?? []}
+                                  width={undefined}
+                                  height={120}
+                                  style={{ width: '100%' }}
+                                />
+                              ) : (
+                                <AnswerText>{answer.text}</AnswerText>
+                              )}
+                              <VotesBadge themeName={themeName} isCorrect={isCorrect}>{answer.votes ?? 0}</VotesBadge>
+                            </AnswerBox>
+                          );
+                        })}
+                      </AnswersGrid>
+                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: 24 }}>
+                        <PieChart
+                          data={(question.answers ?? []).map((answer, i) => ({
+                            label: `${i + 1}`,
+                            value: answer.votes ?? 0,
+                            isCorrect: answer.isCorrect
+                          }))}
+                          themeName={themeName}
+                        />
+                      </div>
+                    </QuestionContainer>
+                  ))}
                 </div>
-                <QuestionBoard>
-                  <MiniWhiteboard
-                    initialPaths={Array.isArray(poll.question) ? poll.question : []}
-                    width={undefined}
-                    height={220}
-                    style={{ width: '100%' }}
-                  />
-                </QuestionBoard>
-                <AnswersGrid>
-                  {poll.options.map((opt: any, idx: number) => {
-                    const isWinner = opt.votes === maxVotes && maxVotes > 0;
-                    const Box = isWinner ? WinnerBox : AnswerBox;
+              )}
+
+              {trueFalseQuestions.length > 0 && (
+                <div style={{ marginBottom: '2rem' }}>
+                  <h2 style={{ color: 'white', marginBottom: '1rem' }}>{t('true_false_questions')}</h2>
+                  {trueFalseQuestions.map((question, index) => (
+                    <QuestionContainer key={`tf-${index}`} themeName={themeName} className="true-false-container">
+                      <DeleteButton themeName={themeName} onClick={() => handleDeleteTrueFalse(index)}>
+                        {t('delete')}
+                      </DeleteButton>
+                      <QuestionBoard>
+                        <MiniWhiteboard
+                          initialPaths={question.questionDrawing ?? []}
+                          width={undefined}
+                          height={220}
+                          style={{ width: '100%' }}
+                        />
+                      </QuestionBoard>
+                      <AnswersGrid>
+                        <AnswerBox
+                          isCorrect={question.answer === true}
+                          themeName={themeName}
+                        >
+                          <AnswerNumber isCorrect={question.answer === true} themeName={themeName}>
+                            {t('true')}
+                          </AnswerNumber>
+                          <AnswerText>{t('true')}</AnswerText>
+                          <VotesBadge themeName={themeName} isCorrect={question.answer === true}>{question.votes?.true ?? 0}</VotesBadge>
+                        </AnswerBox>
+                        <AnswerBox
+                          isCorrect={question.answer === false}
+                          themeName={themeName}
+                        >
+                          <AnswerNumber isCorrect={question.answer === false} themeName={themeName}>
+                            {t('false')}
+                          </AnswerNumber>
+                          <AnswerText>{t('false')}</AnswerText>
+                          <VotesBadge themeName={themeName} isCorrect={question.answer === false}>{question.votes?.false ?? 0}</VotesBadge>
+                        </AnswerBox>
+                      </AnswersGrid>
+                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: 24 }}>
+                        <PieChart
+                          data={[
+                            { label: t('true'), value: question.votes?.true ?? 0, isCorrect: question.answer === true },
+                            { label: t('false'), value: question.votes?.false ?? 0, isCorrect: question.answer === false }
+                          ]}
+                          themeName={themeName}
+                        />
+                      </div>
+                    </QuestionContainer>
+                  ))}
+                </div>
+              )}
+
+              {polls.length > 0 && (
+                <div style={{ marginBottom: '2rem' }}>
+                  <h2 style={{ color: 'white', marginBottom: '1rem' }}>{t('polls')}</h2>
+                  {polls.map((poll, index) => {
+                    const maxVotes = Math.max(...(poll.options ?? []).map(opt => opt.votes ?? 0));
                     return (
-                      <Box key={idx} themeName={themeName} style={{ position: 'relative', overflow: isWinner ? 'hidden' : undefined }}>
-                        {isWinner && (
-                          <ConfettiRain>
-                            {[...Array(40)].map((_, i) => (
-                              <ConfettiPiece
-                                key={i}
-                                color={`hsl(${Math.random() * 360}, 90%, ${55 + Math.random() * 30}%)`}
-                                left={Math.random() * 100}
-                                duration={3 + Math.random() * 2}
-                                rotate={Math.random() * 360}
-                                shape={['circle', 'square', 'triangle', 'star'][Math.floor(Math.random() * 4)] as 'circle' | 'square' | 'triangle' | 'star'}
-                                style={{ animationDelay: `${Math.random() * 2}s` }}
-                              />
-                            ))}
-                          </ConfettiRain>
-                        )}
-                        <AnswerNumber themeName={themeName}>{idx + 1}.</AnswerNumber>
-                        {opt.drawing ? (
+                      <QuestionContainer key={`p-${index}`} themeName={themeName} className="poll-container">
+                        <DeleteButton themeName={themeName} onClick={() => handleDeletePoll(index)}>
+                          {t('delete')}
+                        </DeleteButton>
+                        <QuestionBoard>
                           <MiniWhiteboard
-                            initialPaths={Array.isArray(opt.drawing) ? opt.drawing : []}
+                            initialPaths={poll.question ?? []}
                             width={undefined}
-                            height={120}
+                            height={220}
                             style={{ width: '100%' }}
                           />
-                        ) : null}
-                        <VotesBadge themeName={themeName}>{opt.votes}</VotesBadge>
-                      </Box>
+                        </QuestionBoard>
+                        <AnswersGrid>
+                          {(poll.options ?? []).map((option, i) => {
+                            const isWinner = option.votes === maxVotes && maxVotes > 0;
+                            const Box = isWinner ? WinnerBox : AnswerBox;
+                            return (
+                              <Box key={i} isCorrect={isWinner} themeName={themeName} style={{ position: 'relative', overflow: isWinner ? 'hidden' : undefined }}>
+                                {isWinner && (
+                                  <ConfettiRain>
+                                    {[...Array(40)].map((_, idx) => (
+                                      <ConfettiPiece
+                                        key={idx}
+                                        color={`hsl(${Math.random() * 360}, 90%, ${55 + Math.random() * 30}%)`}
+                                        left={Math.random() * 100}
+                                        duration={3 + Math.random() * 2}
+                                        rotate={Math.random() * 360}
+                                        shape={['circle', 'square', 'triangle', 'star'][Math.floor(Math.random() * 4)] as 'circle' | 'square' | 'triangle' | 'star'}
+                                        style={{ animationDelay: `${Math.random() * 2}s` }}
+                                      />
+                                    ))}
+                                  </ConfettiRain>
+                                )}
+                                <AnswerNumber themeName={themeName}>{i + 1}.</AnswerNumber>
+                                {option.drawing ? (
+                                  <MiniWhiteboard
+                                    initialPaths={option.drawing}
+                                    width={undefined}
+                                    height={120}
+                                    style={{ width: '100%' }}
+                                  />
+                                ) : (
+                                  <AnswerText>{option.text}</AnswerText>
+                                )}
+                                <VotesBadge themeName={themeName} isCorrect={option.votes === maxVotes && maxVotes > 0}>{option.votes ?? 0}</VotesBadge>
+                              </Box>
+                            );
+                          })}
+                        </AnswersGrid>
+                      </QuestionContainer>
                     );
                   })}
-                </AnswersGrid>
-              </QuestionContainer>
-            );
-          })}
-        </div>
+                </div>
+              )}
+
+              {questions.length === 0 && trueFalseQuestions.length === 0 && polls.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '20px', color: 'white' }}>
+                  {t('no_questions')}
+                </div>
+              )}
+            </>
+          )}
+        </ScrollArea>
       </LargeQuizBox>
     </ViewportContainer>
   );

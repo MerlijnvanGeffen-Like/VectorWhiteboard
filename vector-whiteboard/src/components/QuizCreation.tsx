@@ -446,7 +446,7 @@ const AddButton = styled.button<{ themeName: string }>`
   border: none;
   border-radius: 10px;
   width: 100%;
-  height: 80px;
+  min-height: 90px;
   cursor: pointer;
   transition: background 0.2s;
   &:hover {
@@ -597,6 +597,18 @@ const QuizCreation: React.FC<QuizCreationProps> = ({ onSaveQuestion, onReveal, c
     const questionDrawing = questionRef.current?.getPaths ? questionRef.current.getPaths() : null;
     const answerDrawings = answerRefs.current.map(ref => ref?.getPaths ? ref.getPaths() : null);
     const answersWithDrawings = answers.map((a, i) => ({ ...a, drawing: answerDrawings[i] }));
+    
+    // Validatie: controleer of er een tekening is en minstens één antwoord met een tekening
+    if (!questionDrawing || questionDrawing.length === 0) {
+      alert(t('please_draw_question') || 'Teken eerst een vraag.');
+      return;
+    }
+    const hasAnswerDrawing = answersWithDrawings.some(a => a.drawing && a.drawing.length > 0);
+    if (!hasAnswerDrawing) {
+      alert(t('please_draw_answer') || 'Teken minstens één antwoord.');
+      return;
+    }
+    
     onSaveQuestion({ questionDrawing, answers: answersWithDrawings });
     setAnswers([
       { id: 0, votes: 0, drawing: null },
@@ -617,6 +629,18 @@ const QuizCreation: React.FC<QuizCreationProps> = ({ onSaveQuestion, onReveal, c
     const questionDrawing = questionRef.current?.getPaths ? questionRef.current.getPaths() : null;
     const answerDrawings = answerRefs.current.map(ref => ref?.getPaths ? ref.getPaths() : null);
     const answersWithDrawings = answers.map((a, i) => ({ ...a, drawing: answerDrawings[i] }));
+    
+    // Validatie: controleer of er een tekening is en minstens één antwoord met een tekening
+    if (!questionDrawing || questionDrawing.length === 0) {
+      alert(t('please_draw_question') || 'Teken eerst een vraag.');
+      return;
+    }
+    const hasAnswerDrawing = answersWithDrawings.some(a => a.drawing && a.drawing.length > 0);
+    if (!hasAnswerDrawing) {
+      alert(t('please_draw_answer') || 'Teken minstens één antwoord.');
+      return;
+    }
+    
     onSaveQuestion({ questionDrawing, answers: answersWithDrawings });
   };
 
@@ -724,25 +748,29 @@ const QuizCreation: React.FC<QuizCreationProps> = ({ onSaveQuestion, onReveal, c
         </QuestionBoard>
         <AnswersGrid>
           {answers.map((answer, i) => (
-            <AnswerBox key={answer.id} themeName={themeName}>
-              <AnswerNumber themeName={themeName}>{i + 1}.</AnswerNumber>
-              <MiniWhiteboard ref={el => answerRefs.current[i] = el} width={undefined} height={75} style={{ flex: 1, minWidth: 0, maxWidth: 'calc(100% - 60px)' }} color={currentColor} lineWidth={currentWidth} mode={mode} />
-              <VoteBox themeName={themeName}>
-                <VoteBtn up themeName={themeName} onClick={() => vote(answer.id, 1)} title="Upvote">
-                  <ArrowUpwardIcon fontSize="small" />
-                </VoteBtn>
-                <VoteScore themeName={themeName}>{answer.votes}</VoteScore>
-                <VoteBtn themeName={themeName} onClick={() => vote(answer.id, -1)} title="Downvote">
-                  <ArrowDownwardIcon fontSize="small" />
-                </VoteBtn>
-              </VoteBox>
-              {i === answers.length - 1 && (
-                <RemoveBtn themeName={themeName} title="Verwijder antwoord" onClick={() => removeAnswer(answer.id)}><span>-</span></RemoveBtn>
+            <React.Fragment key={answer.id}>
+              <AnswerBox themeName={themeName}>
+                <AnswerNumber themeName={themeName}>{i + 1}.</AnswerNumber>
+                <MiniWhiteboard ref={el => answerRefs.current[i] = el} width={undefined} height={75} style={{ flex: 1, minWidth: 0, maxWidth: 'calc(100% - 60px)' }} color={currentColor} lineWidth={currentWidth} mode={mode} />
+                <VoteBox themeName={themeName}>
+                  <VoteBtn up themeName={themeName} onClick={() => vote(answer.id, 1)} title="Upvote">
+                    <ArrowUpwardIcon fontSize="small" />
+                  </VoteBtn>
+                  <VoteScore themeName={themeName}>{answer.votes}</VoteScore>
+                  <VoteBtn themeName={themeName} onClick={() => vote(answer.id, -1)} title="Downvote">
+                    <ArrowDownwardIcon fontSize="small" />
+                  </VoteBtn>
+                </VoteBox>
+                {i === answers.length - 1 && (
+                  <RemoveBtn themeName={themeName} title="Verwijder antwoord" onClick={() => removeAnswer(answer.id)}><span>-</span></RemoveBtn>
+                )}
+              </AnswerBox>
+              {canAddAnswer && i === answers.length - 1 && (
+                <AddButton themeName={themeName} onClick={addAnswer}>+</AddButton>
               )}
-            </AnswerBox>
+            </React.Fragment>
           ))}
           {answers.length % 2 === 1 && <div />} {/* For grid alignment */}
-          {canAddAnswer && <AddButton themeName={themeName} onClick={addAnswer}>+</AddButton>}
         </AnswersGrid>
       </LargeQuizBox>
     </ViewportContainer>
