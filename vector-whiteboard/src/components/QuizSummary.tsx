@@ -1,15 +1,9 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import styled, { keyframes, css } from 'styled-components';
-import { QuizQuestion as BaseQuizQuestion, AnswerData } from '../App';
 import MiniWhiteboard from './MiniWhiteboard';
 import { PieChart } from './QuizResult';
-import emailjs from '@emailjs/browser';
-import { EMAILJS_CONFIG } from '../config/emailjs';
-import { CLOUDINARY_CONFIG } from '../config/cloudinary';
-import domtoimage from 'dom-to-image-more';
 import axios from 'axios';
 
-// Voeg deze regel toe boven de imports om de linter error op te lossen
 declare module 'dom-to-image-more';
 
 // Snow animation
@@ -399,8 +393,10 @@ const VoteScore = styled.div<VoteScoreProps>`
   }};
 `;
 
-type QuizQuestion = BaseQuizQuestion & {
+type QuizQuestion = {
   id: number;
+  questionDrawing?: any[];
+  answers?: { isCorrect?: boolean; votes?: number; [key: string]: any }[];
 };
 
 type TrueFalseQuestion = {
@@ -1022,7 +1018,7 @@ const QuizSummary: React.FC<QuizSummaryProps> = ({
                         />
                       </QuestionBoard>
                       <AnswersGrid>
-                        {(question.answers ?? []).map((answer, i) => {
+                        {(question.answers ?? []).map((answer: { isCorrect?: boolean; votes?: number; [key: string]: any }, i: number) => {
                           let isCorrect = false;
                           if (typeof answer.isCorrect !== 'undefined') {
                             isCorrect = !!answer.isCorrect;
@@ -1059,7 +1055,7 @@ const QuizSummary: React.FC<QuizSummaryProps> = ({
                       </AnswersGrid>
                       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: 24 }}>
                         <PieChart
-                          data={(question.answers ?? []).map((answer, i) => ({
+                          data={(question.answers ?? []).map((answer: { isCorrect?: boolean; votes?: number; [key: string]: any }, i: number) => ({
                             label: `${i + 1}`,
                             value: answer.votes ?? 0,
                             isCorrect: answer.isCorrect

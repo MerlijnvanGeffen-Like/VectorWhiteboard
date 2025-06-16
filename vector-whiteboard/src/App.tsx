@@ -1452,7 +1452,7 @@ const App: React.FC = () => {
           </OceanContainer>
         )}
         {currentView === 'whiteboard' && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', position: 'relative', zIndex: 10 }}>
             <Whiteboard
               key={whiteboardKey}
               currentColor={currentColor}

@@ -1,7 +1,7 @@
 import React, { useRef, useState, forwardRef, useEffect } from 'react';
 import { Box } from '@mui/material';
 import styled from 'styled-components';
-import MiniWhiteboard, { MiniWhiteboardHandle } from './MiniWhiteboard';
+import MiniWhiteboard from './MiniWhiteboard';
 
 const SVGContainer = styled.svg`
   width: 100%;
@@ -57,6 +57,8 @@ interface WhiteboardProps {
   onClearAll?: () => void;
 }
 
+const HITBOX_SIZE = 20;
+
 const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(({
   width = 800,
   height = 600,
@@ -78,42 +80,17 @@ const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(({
   const [currentPath, setCurrentPath] = useState<PathData | null>(null);
   const [paths, setPaths] = useState<PathData[]>(initialPaths || []);
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
-  const [isMoving, setIsMoving] = useState(false);
-  const [moveOffset, setMoveOffset] = useState<Point>({ x: 0, y: 0 });
   const [viewBox, setViewBox] = useState({ x: 0, y: 0, width: 2000, height: 1200 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState<Point | null>(null);
   const [viewBoxStart, setViewBoxStart] = useState<{ x: number; y: number } | null>(null);
-  const [lassoPoints, setLassoPoints] = useState<Point[]>([]);
-  const [draggedPostit, setDraggedPostit] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState<Point>({ x: 0, y: 0 });
-  const [resizingPostit, setResizingPostit] = useState<string | null>(null);
-  const [resizeStart, setResizeStart] = useState<{mouse: Point, width: number, height: number} | null>(null);
-  const postitRefs = useRef<{ [id: string]: MiniWhiteboardHandle | null }>({});
-  const [draggingSelection, setDraggingSelection] = useState(false);
-  const [selectionDragStart, setSelectionDragStart] = useState<Point | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [startPos, setStartPos] = useState<Point | null>(null);
-  const DRAG_THRESHOLD = 5; // pixels
-
-  const HITBOX_SIZE = 20;
-  const RESOLUTION_SCALE = 4;
-  // Zeer hoge resolutie voor scherpe details
-  const RESOLUTION_SCALE_HIGH = 8;
-
-  // Lasso tool: select and move multiple paths
   const [lassoActive, setLassoActive] = useState(false);
   const [lassoStart, setLassoStart] = useState<Point | null>(null);
   const [lassoEnd, setLassoEnd] = useState<Point | null>(null);
-
-  // Select tool: select and move a single path
   const [selectedPathId, setSelectedPathId] = useState<string | null>(null);
   const [selectStart, setSelectStart] = useState<Point | null>(null);
   const [selectOffset, setSelectOffset] = useState<{dx: number, dy: number}>({dx: 0, dy: 0});
-
-  // Post-it tool: add sticky notes
   const [postits, setPostits] = useState<{id: string, x: number, y: number, width: number, height: number, drawing?: any[]}[]>([]);
-  const [editingPostitId, setEditingPostitId] = useState<string | null>(null);
   const [draggedPostitId, setDraggedPostitId] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState<{x: number, y: number} | null>(null);
   const [resizingPostitId, setResizingPostitId] = useState<string | null>(null);
@@ -192,23 +169,10 @@ const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(({
     );
   };
 
-  const createPoint = (pos: Point) => {
-    const newPath = {
-      points: [pos],
-      color: currentColor,
-      width: currentWidth,
-      id: Date.now().toString(),
-      type: 'drawing' as const
-    };
-    setPaths(prev => [...prev, newPath]);
-  };
-
   const startDrawing = (e: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
     if (currentMode === 'eraser' || currentMode === 'move' || currentMode === 'lasso' || currentMode === 'select' || currentMode === 'postit') return;
     const pos = getMousePosition(e);
     if (!pos) return;
-    setIsDragging(false);
-    setStartPos(pos);
     setIsDrawing(true);
     const newPath: PathData = {
       points: [pos],
@@ -221,7 +185,7 @@ const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(({
   };
 
   const draw = (e: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
-    if (!isDrawing || !currentPath || !startPos) return;
+    if (!isDrawing || !currentPath) return;
     const pos = getMousePosition(e);
     if (!pos) return;
     // Downsample: only add point if distance > 2px
@@ -230,43 +194,13 @@ const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(({
     const dy = pos.y - last.y;
     if (Math.sqrt(dx * dx + dy * dy) < 2) return;
     setCurrentPath(prev => prev ? { ...prev, points: [...prev.points, pos] } : prev);
-    setIsDragging(true);
   };
 
   const endDrawing = () => {
     if (!isDrawing || !currentPath) return;
     setIsDrawing(false);
-    setStartPos(null);
     setPaths(prev => [...prev, currentPath]);
     setCurrentPath(null);
-  };
-
-  const isPointInPolygon = (point: Point, polygon: Point[]): boolean => {
-    let inside = false;
-    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-      const xi = polygon[i].x, yi = polygon[i].y;
-      const xj = polygon[j].x, yj = polygon[j].y;
-      
-      const intersect = ((yi > point.y) !== (yj > point.y))
-          && (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
-      if (intersect) inside = !inside;
-    }
-    return inside;
-  };
-
-  // Clean all function
-  const handleClearAll = () => {
-    setPaths([]);
-    setCurrentPath(null);
-    setSelectedPaths(new Set());
-    if (onClearAll) onClearAll();
-  };
-
-  // Post-it tekenen opslaan
-  const handlePostitDraw = (id: string, paths: any) => {
-    setPaths(prev => prev.map(p =>
-      p.id === id ? { ...p, postitDrawing: paths } : p
-    ));
   };
 
   // Lasso drag state
@@ -481,7 +415,6 @@ const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(({
         // Calculate average pressure for the path
         const avgPressure = points.reduce((sum, p) => sum + (p.pressure || 1), 0) / points.length;
         const avgTiltX = points.reduce((sum, p) => sum + (p.tiltX || 0), 0) / points.length;
-        const avgTiltY = points.reduce((sum, p) => sum + (p.tiltY || 0), 0) / points.length;
 
         return (
           <path
@@ -589,6 +522,8 @@ const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(({
     window.addEventListener('pointerup', handleUp);
     return () => window.removeEventListener('pointerup', handleUp);
   }, [draggedPostitId]);
+
+  const [resizeStart, setResizeStart] = useState<{mouse: Point, width: number, height: number} | null>(null);
 
   return (
     <Box sx={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
